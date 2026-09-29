@@ -1,0 +1,139 @@
+# Build MRM (Windows) + đóng gói plugin HNH SFX Finder, rồi tạo GitHub Release.
+#
+# Phát hành bản mới:
+#   1. Tăng "version" trong src-tauri/tauri.conf.json (+ package.json, src-tauri/Cargo.toml)
+#   2. (tùy chọn) viết ghi chú ở release-notes/vX.Y.Z.md
+#   3. git tag vX.Y.Z && git push origin vX.Y.Z   -> workflow tự build, test và tạo Release
+#
+# Chạy thử không phát hành: tab Actions -> "Build & Release" -> Run workflow (publish = false):
+#   chỉ build + test, file cài đặt nằm ở mục Artifacts của lần chạy.
+name: Build & Release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: "Tạo GitHub Release (tag = v<version trong tauri.conf.json>)"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: windows-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Phiên bản
+        id: v
+        shell: pwsh
+        run: |
+          $app = (Get-Content src-tauri/tauri.conf.json -Raw | ConvertFrom-Json).version
+          $pkg = (Get-Content package.json -Raw | ConvertFrom-Json).version
+          $plugin = (Get-Content plugins/HNH_SFX_Finder_MRM/package.json -Raw | ConvertFrom-Json).version
+          if ($app -ne $pkg) { throw "Phiên bản lệch: tauri.conf.json=$app, package.json=$pkg" }
+          if ("${{ github.ref_type }}" -eq "tag" -and "${{ github.ref_name }}" -ne "v$app") {
+            throw "Tag ${{ github.ref_name }} không khớp phiên bản MRM $app trong tauri.conf.json"
+          }
+          "app=$app" >> $env:GITHUB_OUTPUT
+          "plugin=$plugin" >> $env:GITHUB_OUTPUT
+          Write-Host "MRM $app · plugin $plugin"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri -> target
+
+      # FFmpeg bản LGPL (không nằm trong repo vì ~128 MB) — cùng nguồn với bản đóng gói chính thức
+      - name: FFmpeg sidecar (LGPL)
+        shell: pwsh
+        run: |
+          $url = "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-n8.1-latest-win64-lgpl-8.1.zip"
+          Invoke-WebRequest $url -OutFile ffmpeg.zip
+          Expand-Archive ffmpeg.zip ffmpeg-dl
+          $exe = Get-ChildItem ffmpeg-dl -Recurse -Filter ffmpeg.exe | Select-Object -First 1
+          if (-not $exe) { throw "Không thấy ffmpeg.exe trong gói tải về" }
+          Copy-Item $exe.FullName src-tauri/binaries/ffmpeg-x86_64-pc-windows-msvc.exe
+          & src-tauri/binaries/ffmpeg-x86_64-pc-windows-msvc.exe -hide_banner -version | Select-Object -First 1
+
+      - name: Cài thư viện frontend
+        run: npm ci
+
+      - name: Test Rust
+        working-directory: src-tauri
+        run: cargo test --locked
+
+      - name: Test plugin
+        shell: bash
+        working-directory: plugins/HNH_SFX_Finder_MRM
+        run: |
+          for f in tests/*.test.cjs; do
+            echo "== $f"
+            node "$f" || exit 1
+          done
+
+      - name: Build MRM
+        run: npm run tauri build
+
+      - name: Đóng gói plugin
+        shell: pwsh
+        run: |
+          $v = "${{ steps.v.outputs.plugin }}"
+          $stage = "dist-plugin/stage"
+          New-Item -ItemType Directory -Force $stage | Out-Null
+          Copy-Item plugins/HNH_SFX_Finder_MRM $stage -Recurse
+          Remove-Item -Recurse -Force "$stage/HNH_SFX_Finder_MRM/node_modules", "$stage/HNH_SFX_Finder_MRM/tests/concurrency.cjs" -ErrorAction SilentlyContinue
+          Compress-Archive -Path "$stage/HNH_SFX_Finder_MRM" -DestinationPath "dist-plugin/HNH_SFX_Finder_MRM_v$v.zip"
+
+      - name: Gom file phát hành
+        id: files
+        shell: pwsh
+        run: |
+          $setup = "src-tauri/target/release/bundle/nsis/MRM_${{ steps.v.outputs.app }}_x64-setup.exe"
+          $zip = "dist-plugin/HNH_SFX_Finder_MRM_v${{ steps.v.outputs.plugin }}.zip"
+          foreach ($f in @($setup, $zip)) { if (-not (Test-Path $f)) { throw "Thiếu $f" } ; Get-FileHash $f -Algorithm SHA256 | Format-List }
+          "setup=$setup" >> $env:GITHUB_OUTPUT
+          "zip=$zip" >> $env:GITHUB_OUTPUT
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: MRM-${{ steps.v.outputs.app }}
+          path: |
+            ${{ steps.files.outputs.setup }}
+            ${{ steps.files.outputs.zip }}
+          retention-days: 14
+
+      - name: Tạo GitHub Release
+        if: github.ref_type == 'tag' || inputs.publish
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $tag = "v${{ steps.v.outputs.app }}"
+          $title = "MRM ${{ steps.v.outputs.app }} + Plugin HNH SFX Finder ${{ steps.v.outputs.plugin }}"
+          $files = @("${{ steps.files.outputs.setup }}", "${{ steps.files.outputs.zip }}")
+          $notes = "release-notes/$tag.md"
+          gh release view $tag *> $null
+          if ($LASTEXITCODE -eq 0) {
+            Write-Host "Release $tag đã có -> cập nhật file"
+            gh release upload $tag @files --clobber
+          } elseif (Test-Path $notes) {
+            gh release create $tag @files --title $title --notes-file $notes --target $env:GITHUB_SHA --latest
+          } else {
+            gh release create $tag @files --title $title --generate-notes --target $env:GITHUB_SHA --latest
+          }

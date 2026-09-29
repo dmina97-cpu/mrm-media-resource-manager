@@ -153,7 +153,10 @@ pub async fn update_check(app: AppHandle, manual: bool) -> Res<UpdateInfo> {
                 let _ = db::set_setting(&conn, "update_cache", &latest.as_ref().map(|l| serde_json::to_string(l).unwrap_or_default()).unwrap_or_default());
                 Ok(info(&conn, None))
             }
-            Err(err) => Ok(info(&conn, Some(err))),
+            Err(err) => {
+                crate::diag::note("Kiểm tra cập nhật", &err);
+                Ok(info(&conn, Some(err)))
+            }
         }
     })
     .await

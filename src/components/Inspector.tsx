@@ -7,6 +7,8 @@ import { TagPicker } from "./TagPicker";
 import { AppLogo } from "./AppLogo";
 import { FileBrowser, invalidateCovers, PreviewModal, PreviewTarget, useCover } from "./Media";
 import { ImageViewer, imagesFromClipboard, MAX_NOTE_IMAGES, NoteImages } from "./NoteImages";
+import { CollectionPicker } from "./Collections";
+import { open as openDialog } from "@tauri-apps/plugin-dialog";
 
 interface Props {
   focusId: number | null;
@@ -268,6 +270,26 @@ function SingleInspector(props: Props & { focusId: number }) {
     onChanged();
   };
 
+  // Ảnh bìa: dán ảnh (Ctrl+V) hoặc chọn file -> thành ảnh Notes đầu tiên (= ảnh bìa)
+  const coverFrom = async (input: Parameters<typeof api.setCoverImage>[1]) => {
+    try {
+      await api.setCoverImage(detail.id, input);
+      toast("Đã đặt ảnh bìa");
+      refreshAll();
+    } catch (err) {
+      const msg = errorText(err);
+      toast(msg.includes("Tối đa") ? `Đã đủ ${MAX_NOTE_IMAGES} ảnh Notes — xóa bớt 1 ảnh để đặt ảnh bìa mới` : msg, "err");
+    }
+  };
+  const pickCover = async () => {
+    const sel = await openDialog({
+      multiple: false,
+      title: "Chọn ảnh bìa",
+      filters: [{ name: "Ảnh / video", extensions: ["png", "jpg", "jpeg", "webp", "gif", "bmp", "tif", "tiff", "psd", "mp4", "mov", "mkv", "webm"] }],
+    });
+    if (typeof sel === "string") coverFrom({ path: sel });
+  };
+
   const saveName = async () => {
     if (name.trim() && name.trim() !== detail.name) {
       await api.updateResource(detail.id, { name: name.trim() });
@@ -308,6 +330,29 @@ function SingleInspector(props: Props & { focusId: number }) {
         )}
       </div>
 
+      <div
+        className="insp-cover-wrap"
+        tabIndex={0}
+        title="Dán ảnh (Ctrl+V) để đặt làm ảnh bìa"
+        onPaste={async (e) => {
+          const imgs = await imagesFromClipboard(e);
+          if (imgs.length === 0) return;
+          e.preventDefault();
+          coverFrom(imgs[0]);
+        }}
+      >
+      {!cover && (
+        <button className="insp-cover empty" onClick={pickCover}>
+          <Icon name="image" size={22} />
+          <span>Chưa có ảnh bìa</span>
+          <small>Bấm để chọn ảnh · hoặc bấm vào đây rồi dán (Ctrl+V)</small>
+        </button>
+      )}
+      {cover && (
+        <button className="cover-change" onClick={pickCover} title="Chọn ảnh khác làm ảnh bìa (hoặc bấm vào ảnh rồi dán Ctrl+V)">
+          <Icon name="image" size={12} /> Đổi ảnh bìa
+        </button>
+      )}
       {cover && (
         <button
           className="insp-cover"
@@ -342,6 +387,7 @@ function SingleInspector(props: Props & { focusId: number }) {
           )}
         </button>
       )}
+      </div>
 
       {detail.auto_tags.length > 0 && (
         <div className="auto-notice">
@@ -664,6 +710,8 @@ function SingleInspector(props: Props & { focusId: number }) {
         </div>
       )}
 
+      <CollectionPicker kind="resource" ids={[detail.id]} onChanged={onChanged} toast={toast} />
+
       {props.onOpenMedia && <ResourceMedia resourceId={detail.id} name={detail.name} reloadKey={props.reloadKey} onOpen={props.onOpenMedia} />}
 
       {detail.sources.some((s) => s.available && s.kind !== "file") && (
@@ -846,6 +894,7 @@ function BulkInspector(props: Props) {
       <div className="insp-sub">
         <span>{formatSize(total)}</span>
       </div>
+      <CollectionPicker kind="resource" ids={ids} onChanged={onChanged} toast={toast} />
       <div className="insp-block">
         <div className="bulk-actions">
           <button

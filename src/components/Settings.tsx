@@ -60,6 +60,30 @@ export function Settings({ libraries, scanning, reloadKey, onAddLibrary, onScan,
       <AiSettings ai={ai} refreshAi={refreshAi} toast={toast} />
       <StorageSettings toast={toast} />
       <UpdateSettings toast={toast} />
+      <section className="panel">
+        <h2>
+          <Icon name="alert" size={14} /> Báo lỗi
+        </h2>
+        <p className="muted small">
+          Gặp lỗi? Xuất file chẩn đoán rồi gửi cho nhà phát triển. File chỉ gồm phiên bản, số đếm, trạng thái AI và lỗi gần đây — không chứa đường dẫn, tên thư viện, tên
+          file hay ghi chú của bạn.
+        </p>
+        <div className="row-actions">
+          <button
+            className="btn"
+            onClick={async () => {
+              const p = await save({
+                title: "Lưu file chẩn đoán MRM",
+                defaultPath: `MRM-diagnostics-${new Date().toISOString().slice(0, 10)}.json`,
+                filters: [{ name: "JSON", extensions: ["json"] }],
+              });
+              if (p) run(() => api.exportDiagnostics(p), "Đã xuất file chẩn đoán");
+            }}
+          >
+            <Icon name="file" size={14} /> Xuất chẩn đoán
+          </button>
+        </div>
+      </section>
 
       <section className="panel">
         <h2>Backup & Export</h2>

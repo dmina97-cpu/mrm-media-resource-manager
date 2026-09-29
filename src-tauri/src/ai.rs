@@ -5,7 +5,7 @@
 
 use crate::commands::AppState;
 use crate::db;
-use crate::media::{ext_of, hidden};
+use crate::media::hidden;
 use rusqlite::{params, Connection, OptionalExtension};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
@@ -466,17 +466,11 @@ pub fn inner_file_names(conn: &Connection, resource_id: i64, limit: usize) -> Ve
                     }
                 }
             }
-            "archive" if ext_of(&src.abs.to_string_lossy()) == "zip" => {
-                if let Ok(f) = std::fs::File::open(&src.abs) {
-                    if let Ok(mut z) = zip::ZipArchive::new(std::io::BufReader::new(f)) {
-                        for i in 0..z.len() {
-                            if let Ok(f) = z.by_index_raw(i) {
-                                out.push(f.name().to_string());
-                                if out.len() >= limit {
-                                    return out;
-                                }
-                            }
-                        }
+            "archive" => {
+                for f in crate::archive::list(&src.abs).unwrap_or_default() {
+                    out.push(if f.is_dir { format!("{}/", f.name) } else { f.name });
+                    if out.len() >= limit {
+                        return out;
                     }
                 }
             }
@@ -643,6 +637,7 @@ pub fn start_indexer(app: &AppHandle) {
                         Ok(n) if n > 0 => continue,
                         Err(err) => {
                             eprintln!("asset ai index error: {err}");
+                            crate::diag::note("AI file media", &err);
                             std::thread::sleep(Duration::from_secs(15));
                             continue;
                         }
@@ -658,6 +653,7 @@ pub fn start_indexer(app: &AppHandle) {
                 Ok(_) => {}
                 Err(err) => {
                     eprintln!("ai index error: {err}");
+                    crate::diag::note("AI chỉ mục", &err);
                     std::thread::sleep(Duration::from_secs(15));
                 }
             }
@@ -779,11 +775,16 @@ fn readme_text(conn: &Connection, id: i64) -> String {
         let mut buf = Vec::new();
         let ok = match src.kind.as_str() {
             "folder" => std::fs::File::open(src.abs.join(inner)).and_then(|f| f.take(4000).read_to_end(&mut buf)).is_ok(),
-            "archive" => std::fs::File::open(&src.abs)
-                .ok()
-                .and_then(|f| zip::ZipArchive::new(std::io::BufReader::new(f)).ok())
-                .and_then(|mut z| z.by_name(inner).ok().and_then(|f| f.take(4000).read_to_end(&mut buf).ok()))
-                .is_some(),
+            "archive" => {
+                let tmp = std::env::temp_dir().join("mrm-readme");
+                match crate::archive::read_head(&src.abs, inner, 4000, &tmp) {
+                    Ok((b, _)) => {
+                        buf = b;
+                        true
+                    }
+                    Err(_) => false,
+                }
+            }
             _ => false,
         };
         if ok && !buf.is_empty() {
@@ -899,7 +900,10 @@ pub async fn ai_analyze(app: AppHandle, ids: Vec<i64>) -> Res<()> {
                         *state.learn.lock().unwrap() = None;
                         let _ = app.emit("ai-analyzed", *id);
                     }
-                    Err(err) => eprintln!("ai analyze {id}: {err}"),
+                    Err(err) => {
+                        eprintln!("ai analyze {id}: {err}");
+                        crate::diag::note("AI phân tích", &err);
+                    }
                 }
             }
             set_progress(&app, "idle", "Phân tích xong", total, total);

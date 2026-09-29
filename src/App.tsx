@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { open, message } from "@tauri-apps/plugin-dialog";
-import { AiProgress, AiStatus, api, AssetCounts, Library, ListView, Presence, ResourceSummary, ScanProgress, SortKey, Tag } from "./api";
+import { AiProgress, AiStatus, api, AssetCounts, CollectionInfo, Library, ListView, Presence, ResourceSummary, ScanProgress, SortKey, Tag } from "./api";
 import { errorText, formatNumber, formatSize } from "./format";
 import { Sidebar } from "./components/Sidebar";
 import { ResourceView } from "./components/ResourceView";
@@ -18,13 +18,14 @@ import { BulkSuggest } from "./components/BulkSuggest";
 import { MediaBrowser, MediaView } from "./components/MediaBrowser";
 import { UpdateBanner } from "./components/Updates";
 import { Onboarding } from "./components/Onboarding";
+import { promptNewCollection } from "./components/Collections";
 import "./styles.css";
 import "./styles-media.css";
 
 export type Route =
   | { page: "dashboard" }
-  | { page: "resources"; view: ListView; tagId?: number; libraryId?: number }
-  | { page: "media"; view: MediaView; resourceId?: number; resourceName?: string }
+  | { page: "resources"; view: ListView; tagId?: number; libraryId?: number; collectionId?: number }
+  | { page: "media"; view: MediaView; resourceId?: number; resourceName?: string; collectionId?: number; collectionName?: string }
   | { page: "matches" }
   | { page: "cleanup" }
   | { page: "rules" }
@@ -105,10 +106,15 @@ export default function App() {
   const [presence, setPresence] = useState<Presence | null>(null);
   // Hướng dẫn lần đầu: chỉ khi chưa có library nào và chưa tắt
   const [onboarding, setOnboarding] = useState(false);
+  const [collections, setCollections] = useState<CollectionInfo[]>([]);
+  const refreshCollections = useCallback(() => {
+    api.listCollections().then(setCollections).catch(() => undefined);
+  }, []);
   const [onboardingChecked, setOnboardingChecked] = useState(false);
   const refreshMediaCounts = useCallback(() => {
     api.assetCounts().then(setMediaCounts).catch(() => undefined);
   }, []);
+  useEffect(refreshCollections, [refreshCollections, reloadKey, mediaKey]);
   useEffect(() => {
     refreshMediaCounts();
     const t = setInterval(refreshMediaCounts, 20000);
@@ -147,7 +153,15 @@ export default function App() {
   const effectiveSort: SortKey = searching ? searchSort : sort === "relevance" ? "name" : sort;
   const query = useMemo(() => {
     if (route.page !== "resources") return null;
-    return { view: route.view, tag_id: route.tagId ?? null, library_id: route.libraryId ?? null, search, sort: effectiveSort, desc };
+    return {
+      view: route.view,
+      tag_id: route.tagId ?? null,
+      library_id: route.libraryId ?? null,
+      collection_id: route.collectionId ?? null,
+      search,
+      sort: effectiveSort,
+      desc,
+    };
   }, [route, search, effectiveSort, desc]);
 
   useEffect(() => {
@@ -357,6 +371,8 @@ export default function App() {
         return tagMap.get(route.tagId ?? -1)?.name ?? "Tag";
       case "library":
         return libraries.find((l) => l.id === route.libraryId)?.name ?? "Library";
+      case "collection":
+        return collections.find((c) => c.id === route.collectionId)?.name ?? "Collection";
     }
   })();
 
@@ -366,7 +382,23 @@ export default function App() {
 
   return (
     <div className="app">
-      <Sidebar route={route} onNavigate={navigate} tags={tags} libraries={libraries} counts={counts} mediaCounts={mediaCounts} pluginActive={!!presence?.plugin_active} />
+      <Sidebar
+        route={route}
+        onNavigate={navigate}
+        tags={tags}
+        libraries={libraries}
+        counts={counts}
+        mediaCounts={mediaCounts}
+        pluginActive={!!presence?.plugin_active}
+        collections={collections}
+        onNewCollection={async () => {
+          const id = await promptNewCollection(toast);
+          if (id != null) {
+            refreshCollections();
+            navigate({ page: "resources", view: "collection", collectionId: id });
+          }
+        }}
+      />
 
       <main className="main">
         <UpdateBanner toast={toast} />
@@ -378,6 +410,21 @@ export default function App() {
                 <span className="muted">
                   {formatNumber(items.length)} resource · {formatSize(totalSize)}
                 </span>
+                {route.page === "resources" && route.view === "collection" && route.collectionId != null && (
+                  <CollectionActions
+                    collection={collections.find((c) => c.id === route.collectionId) ?? null}
+                    onOpenMedia={(c) => setRoute({ page: "media", view: "audio", collectionId: c.id, collectionName: c.name })}
+                    onChanged={() => {
+                      refreshCollections();
+                      refresh();
+                    }}
+                    onDeleted={() => {
+                      refreshCollections();
+                      navigate({ page: "resources", view: "all" });
+                    }}
+                    toast={toast}
+                  />
+                )}
               </div>
               <div className="search">
                 <Icon name="search" size={15} />
@@ -529,13 +576,18 @@ export default function App() {
           <MediaBrowser
             view={route.view}
             resource={route.resourceId ? { id: route.resourceId, name: route.resourceName ?? "" } : null}
-            onClearResource={() => setRoute({ page: "media", view: route.view })}
+            onClearResource={() => setRoute({ page: "media", view: route.view, collectionId: route.collectionId, collectionName: route.collectionName })}
+            collection={route.collectionId ? { id: route.collectionId, name: route.collectionName ?? "" } : null}
+            onClearCollection={() => setRoute({ page: "media", view: route.view, resourceId: route.resourceId, resourceName: route.resourceName })}
             libraries={libraries}
             reloadKey={mediaKey}
             presence={presence}
             pendingMeta={mediaCounts?.pending_meta ?? 0}
             aiReady={aiReady}
-            onChanged={refreshMediaCounts}
+            onChanged={() => {
+              refreshMediaCounts();
+              refreshCollections();
+            }}
             onOpenResource={(id) => {
               setRoute({ page: "resources", view: "all" });
               setSearch("");
@@ -660,5 +712,57 @@ export default function App() {
         ))}
       </div>
     </div>
+  );
+}
+
+/** Đổi tên / xóa collection, mở file media của collection. */
+function CollectionActions({
+  collection,
+  onOpenMedia,
+  onChanged,
+  onDeleted,
+  toast,
+}: {
+  collection: CollectionInfo | null;
+  onOpenMedia: (c: CollectionInfo) => void;
+  onChanged: () => void;
+  onDeleted: () => void;
+  toast: (msg: string, kind?: "ok" | "err") => void;
+}) {
+  if (!collection) return null;
+  return (
+    <span className="coll-actions">
+      {collection.assets > 0 && (
+        <button className="link-btn" onClick={() => onOpenMedia(collection)}>
+          <Icon name="music" size={12} /> {formatNumber(collection.assets)} file media
+        </button>
+      )}
+      <button
+        className="link-btn"
+        onClick={async () => {
+          const name = window.prompt("Tên mới cho collection:", collection.name);
+          if (!name?.trim() || name.trim() === collection.name) return;
+          try {
+            await api.renameCollection(collection.id, name.trim());
+            onChanged();
+          } catch (err) {
+            toast(errorText(err), "err");
+          }
+        }}
+      >
+        Đổi tên
+      </button>
+      <button
+        className="link-btn danger"
+        onClick={async () => {
+          if (!confirm(`Xóa collection “${collection.name}”? Resource và file bên trong vẫn giữ nguyên, chỉ bỏ nhóm.`)) return;
+          await api.deleteCollection(collection.id);
+          toast("Đã xóa collection");
+          onDeleted();
+        }}
+      >
+        Xóa
+      </button>
+    </span>
   );
 }

@@ -119,3 +119,13 @@ Phím tắt: `Ctrl+F` tìm · `↑/↓` chọn (Shift để chọn dải) · `Ct
 
 - Phase 1–5: xong.
 - Còn lại: UI cho Collections (schema đã có), hỗ trợ xem bên trong RAR/7Z.
+
+## Phát hành (GitHub Actions)
+
+Workflow `.github/workflows/release.yml` build trên `windows-latest`: tải FFmpeg LGPL, chạy test Rust + plugin, build bộ cài NSIS, đóng gói plugin rồi tạo Release.
+
+1. Tăng `version` trong `src-tauri/tauri.conf.json`, `package.json`, `src-tauri/Cargo.toml` (plugin: `plugins/HNH_SFX_Finder_MRM/package.json`, `manifest.xml`, `main.js`).
+2. Viết ghi chú ở `release-notes/vX.Y.Z.md` (không bắt buộc — thiếu thì GitHub tự sinh).
+3. `git tag vX.Y.Z && git push origin vX.Y.Z`.
+
+Chạy thử không phát hành: tab **Actions → Build & Release → Run workflow** (để `publish` tắt) — file cài nằm ở mục Artifacts.

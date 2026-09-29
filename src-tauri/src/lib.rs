@@ -1,11 +1,14 @@
 mod ai;
+mod archive;
 mod asset_ai;
 mod assets;
 mod autotag;
 mod autodetect;
 mod classify;
+mod collections;
 mod commands;
 mod db;
+mod diag;
 mod exclude;
 mod matcher;
 mod media;
@@ -77,6 +80,7 @@ pub fn run() {
             };
             if let Err(err) = commands::auto_backup(&state) {
                 eprintln!("auto backup failed: {err}");
+                crate::diag::note("Backup tự động", &err);
             }
             app.manage(state);
             app.manage(watcher::WatchManager::default());
@@ -130,6 +134,16 @@ pub fn run() {
             commands::get_pref,
             commands::take_db_notice,
             presence::get_presence,
+            collections::list_collections,
+            collections::create_collection,
+            collections::rename_collection,
+            collections::delete_collection,
+            collections::set_collection_resources,
+            collections::set_collection_assets,
+            collections::collections_of,
+            diag::export_diagnostics,
+            noteimg::set_cover_image,
+            assets::set_cover_from_asset,
             exclude::get_scan_excludes,
             updater::update_check,
             updater::update_configure,

@@ -234,6 +234,7 @@ fn run_scan(app: &AppHandle, id: i64, full: bool) -> Res<ScanResult> {
         // Media Browser: lập chỉ mục asset cấp file (lô nhỏ, không chặn plugin)
         if let Err(err) = crate::media_index::index_library(&state.db, id, Some(&state.storage_dir())) {
             eprintln!("media index {id}: {err}");
+            crate::diag::note("Lập chỉ mục media", &err);
         }
     }
     result
@@ -266,6 +267,7 @@ pub struct ResourceQuery {
     view: String,
     tag_id: Option<i64>,
     library_id: Option<i64>,
+    collection_id: Option<i64>,
     search: String,
     /// name | size | updated | created | modified
     sort: String,
@@ -384,6 +386,10 @@ fn query_resources_blocking(app: &AppHandle, q: ResourceQuery) -> Res<Vec<Resour
         "library" => {
             conds.push("EXISTS (SELECT 1 FROM resource_sources s WHERE s.resource_id = r.id AND s.library_id = ?)".into());
             args.push(V::Integer(q.library_id.unwrap_or(-1)));
+        }
+        "collection" => {
+            conds.push("EXISTS (SELECT 1 FROM collection_resources x WHERE x.resource_id = r.id AND x.collection_id = ?)".into());
+            args.push(V::Integer(q.collection_id.unwrap_or(-1)));
         }
         _ => {}
     }

@@ -4,6 +4,8 @@ import { startDrag } from "@crabnebula/tauri-plugin-drag";
 import { api, AssetAiStatus, AssetDetail, AssetFacets, AssetItem, AssetQuery, AssetSort, Library, MediaType, Presence, VisionStatus } from "../api";
 import { errorText, formatDateTime, formatNumber, formatSize } from "../format";
 import { Icon } from "./Icon";
+import { CollectionPicker } from "./Collections";
+import { invalidateCovers } from "./Media";
 
 export type MediaView = MediaType | "favorites" | "recent";
 
@@ -195,6 +197,8 @@ interface Props {
   view: MediaView;
   resource: { id: number; name: string } | null;
   onClearResource: () => void;
+  collection: { id: number; name: string } | null;
+  onClearCollection: () => void;
   libraries: Library[];
   reloadKey: number;
   presence: Presence | null;
@@ -223,7 +227,7 @@ export function MediaBrowser(props: Props) {
   return <Browser {...props} />;
 }
 
-function Browser({ view, resource, onClearResource, libraries, reloadKey, pendingMeta, aiReady, onChanged, onOpenResource, toast }: Props) {
+function Browser({ view, resource, onClearResource, collection, onClearCollection, libraries, reloadKey, pendingMeta, aiReady, onChanged, onOpenResource, toast }: Props) {
   const mediaType: MediaType | null = view === "favorites" || view === "recent" ? null : view;
   const [text, setText] = useState("");
   const [debounced, setDebounced] = useState("");
@@ -302,13 +306,14 @@ function Browser({ view, resource, onClearResource, libraries, reloadKey, pendin
       semantic: aiReady,
       library_id: libraryId,
       resource_id: resource?.id ?? null,
+      collection_id: collection?.id ?? null,
       favorites: view === "favorites",
       recent: view === "recent",
       sort,
       desc,
       limit: PAGE,
     }),
-    [mediaType, debounced, ext, tagId, aiCat, aiReady, libraryId, resource, view, sort, desc],
+    [mediaType, debounced, ext, tagId, aiCat, aiReady, libraryId, resource, collection, view, sort, desc],
   );
 
   const load = useCallback(
@@ -481,7 +486,7 @@ function Browser({ view, resource, onClearResource, libraries, reloadKey, pendin
   };
 
   const title = MEDIA_VIEW_LABEL[view];
-  const hasFilter = !!(debounced || ext || tagId || aiCat || libraryId || resource);
+  const hasFilter = !!(debounced || ext || tagId || aiCat || libraryId || resource || collection);
   const aiIndexing = aiStatus && aiStatus.indexed < aiStatus.total;
 
   return (
@@ -489,6 +494,14 @@ function Browser({ view, resource, onClearResource, libraries, reloadKey, pendin
       <header className="toolbar">
         <div className="toolbar-title">
           <h1>{title}</h1>
+          {collection && (
+            <span className="chip coll-chip mb-res-chip" title="Chỉ hiện file trong collection này">
+              <Icon name="layers" size={11} /> {collection.name}
+              <button className="chip-x" onClick={onClearCollection} aria-label="Bỏ lọc collection">
+                <Icon name="x" size={10} />
+              </button>
+            </span>
+          )}
           {resource && (
             <span className="chip k-type mb-res-chip" title="Chỉ hiện file trong resource này">
               <Icon name="layers" size={11} /> {resource.name}
@@ -995,6 +1008,23 @@ function AssetInspector({
           <button className="btn" onClick={() => copyPath().catch((err) => toast(errorText(err), "err"))}>
             <Icon name="copy" size={14} /> Sao chép đường dẫn
           </button>
+          {item.media_type !== "audio" && item.resource_id != null && item.available && (
+            <button
+              className="btn"
+              title="Dùng ảnh/khung hình này làm ảnh bìa cho resource chứa nó"
+              onClick={() =>
+                api
+                  .setCoverFromAsset(item.id)
+                  .then(() => {
+                    invalidateCovers([item.resource_id!]);
+                    toast(`Đã đặt làm ảnh bìa của “${item.resource_name ?? "resource"}”`);
+                  })
+                  .catch((err) => toast(errorText(err), "err"))
+              }
+            >
+              <Icon name="image" size={14} /> Đặt làm ảnh bìa
+            </button>
+          )}
         </div>
       </div>
 
@@ -1046,6 +1076,8 @@ function AssetInspector({
       )}
 
       {d && <TagEditor ids={[d.id]} tags={d.tags.map((t) => t.name)} onChanged={() => (reload(), onTagsChanged())} toast={toast} />}
+
+      {d && <CollectionPicker kind="asset" ids={[d.id]} onChanged={onTagsChanged} toast={toast} />}
 
       {similar && similar.length > 0 && (
         <div className="insp-block">
@@ -1195,6 +1227,7 @@ function BulkPanel({
         </div>
       </div>
       <TagEditor ids={ids} tags={[]} onChanged={onChanged} toast={toast} />
+      <CollectionPicker kind="asset" ids={ids} onChanged={onChanged} toast={toast} />
       <div className="muted small mb-hint">Ctrl + click để chọn thêm / bỏ, Shift + click để chọn một dải.</div>
     </div>
   );

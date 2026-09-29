@@ -1601,3 +1601,90 @@ button.rel-row:hover {
   border-top: 1px solid var(--line);
   background: var(--bg-2);
 }
+
+/* ---------------------------------------------------------------- collections */
+.nav-heading-row {
+  justify-content: space-between;
+}
+.nav-add {
+  display: inline-grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 5px;
+  color: var(--muted);
+}
+.nav-add:hover {
+  color: var(--text);
+  background: var(--hover);
+}
+.coll-chip {
+  --c: var(--accent);
+}
+.coll-add {
+  font-size: 12px;
+  padding: 2px 6px;
+  border-radius: 12px;
+  border: 1px dashed var(--line-2);
+  background: transparent;
+  color: var(--text-2);
+  max-width: 100%;
+}
+.coll-actions {
+  display: inline-flex;
+  gap: 10px;
+  margin-left: 10px;
+  font-size: 12px;
+}
+.link-btn.danger {
+  color: var(--danger);
+}
+
+/* ---------------------------------------------------------------- ảnh bìa: dán / chọn nhanh */
+.insp-cover-wrap {
+  position: relative;
+  outline: none;
+  border-radius: 8px;
+}
+.insp-cover-wrap:focus-within,
+.insp-cover-wrap:focus {
+  box-shadow: 0 0 0 2px var(--accent);
+}
+.insp-cover.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  color: var(--muted);
+  border: 1px dashed var(--line-2);
+  text-align: center;
+  padding: 10px;
+}
+.insp-cover.empty small {
+  font-size: 11px;
+}
+.insp-cover.empty:hover {
+  color: var(--text);
+  border-color: var(--accent);
+}
+.cover-change {
+  position: absolute;
+  z-index: 2;
+  left: 6px;
+  bottom: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11.5px;
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.6);
+  color: #fff;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.insp-cover-wrap:hover .cover-change,
+.insp-cover-wrap:focus-within .cover-change {
+  opacity: 1;
+}

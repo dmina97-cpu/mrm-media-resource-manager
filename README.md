@@ -26,7 +26,7 @@ Tải bản cài ở mục **[Releases](../../releases)**:
 
 | Thành phần | Phiên bản |
 |---|---|
-| MRM | **0.9.0** |
+| MRM | **0.10.0** |
 | Plugin HNH SFX Finder | **0.12.1** |
 
 ## Yêu cầu hệ thống
@@ -72,6 +72,10 @@ Tải bản cài ở mục **[Releases](../../releases)**:
   - **AI nhìn ảnh/video** (mặc định tắt): tìm theo nội dung hình — *cô gái tóc dài*, *nền trời xanh*…
 - **Dọn dẹp** — tìm trùng lặp, gom các phiên bản của cùng một gói, kiểm tra "đã có chưa?" trước khi tải.
 - **An toàn dữ liệu** — tự backup database mỗi ngày, tự kiểm tra và khôi phục nếu database hỏng.
+- **Collections** — tự nhóm resource và file media theo ý bạn (vd: “SFX vlog”, “LUT điện ảnh”).
+- **Xem bên trong ZIP, RAR, 7Z** — duyệt file, nghe/xem thử, ảnh bìa tự động từ bên trong file nén.
+- **Đổi ảnh bìa nhanh** — dán ảnh (Ctrl+V) hoặc chọn ảnh; đặt ảnh/video trong Media Browser làm ảnh bìa.
+- **Báo lỗi dễ** — xuất file chẩn đoán (không chứa đường dẫn hay dữ liệu cá nhân) để gửi nhà phát triển.
 - **Loại trừ khi quét** — bỏ qua thư mục rác (cache của CapCut/Adobe, `node_modules`…), có sẵn danh sách mặc định.
 - **Tự cập nhật** — báo khi có bản mới trên GitHub, bấm một nút là tải (kiểm tra SHA-256) và cài đè, dữ liệu giữ nguyên.
 - **Hướng dẫn lần đầu** — 3 bước: loại trừ thư mục rác → chọn thư mục tài nguyên → bật AI nếu muốn.

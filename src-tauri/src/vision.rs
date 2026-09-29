@@ -212,6 +212,7 @@ pub fn start_worker(app: &AppHandle) {
                 }
                 Err(err) => {
                     eprintln!("vision error: {err}");
+                    crate::diag::note("AI nhìn ảnh", &err);
                     std::thread::sleep(Duration::from_secs(15));
                 }
             }

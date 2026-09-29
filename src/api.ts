@@ -219,6 +219,7 @@ export interface AssetQuery {
   resource_id?: number | null;
   tag_id?: number | null;
   ai_category?: string | null;
+  collection_id?: number | null;
   semantic?: boolean;
   ext?: string | null;
   favorites?: boolean;
@@ -283,6 +284,13 @@ export interface AssetFacets {
   exts: { key: string; id: null; count: number }[];
   tags: { key: string; id: number; count: number }[];
   ai: { key: string; id: null; count: number }[];
+}
+
+export interface CollectionInfo {
+  id: number;
+  name: string;
+  resources: number;
+  assets: number;
 }
 
 export interface UpdateInfo {
@@ -408,13 +416,14 @@ export interface CacheStats {
   limit_mb: number;
 }
 
-export type ListView = "all" | "unclassified" | "review" | "favorites" | "missing" | "tag" | "library";
+export type ListView = "all" | "unclassified" | "review" | "favorites" | "missing" | "tag" | "library" | "collection";
 export type SortKey = "name" | "size" | "updated" | "created" | "modified" | "relevance";
 
 export interface ResourceQuery {
   view: ListView;
   tag_id?: number | null;
   library_id?: number | null;
+  collection_id?: number | null;
   search: string;
   sort: SortKey;
   desc: boolean;
@@ -536,6 +545,16 @@ export const api = {
   tagAssetsByQuery: (query: AssetQuery, name: string) => invoke<number>("tag_assets_by_query", { query, name }),
   assetAiStatus: () => invoke<AssetAiStatus>("asset_ai_status"),
   visionStatus: () => invoke<VisionStatus>("vision_status"),
+  listCollections: () => invoke<CollectionInfo[]>("list_collections"),
+  createCollection: (name: string) => invoke<number>("create_collection", { name }),
+  renameCollection: (id: number, name: string) => invoke<void>("rename_collection", { id, name }),
+  deleteCollection: (id: number) => invoke<void>("delete_collection", { id }),
+  setCollectionResources: (collectionId: number, ids: number[], on: boolean) => invoke<void>("set_collection_resources", { collectionId, ids, on }),
+  setCollectionAssets: (collectionId: number, ids: number[], on: boolean) => invoke<void>("set_collection_assets", { collectionId, ids, on }),
+  collectionsOf: (resourceId: number | null, assetId: number | null) => invoke<number[]>("collections_of", { resourceId, assetId }),
+  exportDiagnostics: (path: string) => invoke<void>("export_diagnostics", { path }),
+  setCoverImage: (resourceId: number, input: NoteImageInput) => invoke<NoteImage>("set_cover_image", { resourceId, input }),
+  setCoverFromAsset: (id: number) => invoke<number>("set_cover_from_asset", { id }),
   updateCheck: (manual: boolean) => invoke<UpdateInfo>("update_check", { manual }),
   updateConfigure: (auto: boolean | null, skip: string | null) => invoke<UpdateInfo>("update_configure", { auto, skip }),
   updateInstall: () => invoke<void>("update_install"),

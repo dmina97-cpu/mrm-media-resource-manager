@@ -1,6 +1,6 @@
 [package]
 name = "nink-vault"
-version = "0.9.0"
+version = "0.10.0"
 description = "MRM - Media Resource Manager"
 authors = ["Phạm Nam"]
 edition = "2021"
@@ -36,6 +36,8 @@ notify = "8.2.0"
 ureq = { version = "3.4.2", features = ["json"] }
 tokio = { version = "1.53.1", features = ["sync"] }
 sha2 = "0.10"
+sevenz-rust2 = { version = "0.23", default-features = false, features = ["util", "bzip2", "ppmd", "deflate"] }
+unrar = "0.5"
 
 
 # Read the optimization guideline for more details: https://tauri.app/concept/size/#cargo-configuration

@@ -165,14 +165,27 @@ pub fn remove_note_image(state: State<AppState>, id: i64) -> Res<()> {
 }
 
 /// Đưa ảnh lên đầu (thành ảnh bìa) và bỏ ảnh bìa tự chọn trước đó.
+/// Đặt ảnh bìa từ ảnh dán (Ctrl+V), file ảnh/video hoặc khung hình: lưu thành ảnh Notes ĐẦU TIÊN
+/// (ảnh bìa = ảnh Notes đầu tiên), bỏ ảnh bìa tự chọn trước đó.
 #[tauri::command]
-pub fn note_image_to_front(state: State<AppState>, id: i64) -> Res<()> {
-    let conn = state.db.lock().unwrap();
+pub async fn set_cover_image(app: AppHandle, resource_id: i64, input: ImageInput) -> Res<NoteImage> {
+    let img = add_note_image(app.clone(), resource_id, input).await?;
+    let state = app.state::<AppState>();
+    to_front(&state.db.lock().unwrap(), img.id)?;
+    Ok(NoteImage { position: 0, ..img })
+}
+
+fn to_front(conn: &Connection, id: i64) -> Res<()> {
     let rid: i64 = conn.query_row("SELECT resource_id FROM note_images WHERE id = ?1", [id], |r| r.get(0)).map_err(e)?;
     conn.execute("UPDATE note_images SET position = position + 1 WHERE resource_id = ?1", [rid]).map_err(e)?;
     conn.execute("UPDATE note_images SET position = 0 WHERE id = ?1", [id]).map_err(e)?;
     conn.execute("UPDATE resources SET cover = NULL, cover_user = 0 WHERE id = ?1", [rid]).map_err(e)?;
-    db::touch(&conn, rid).map_err(e)
+    db::touch(conn, rid).map_err(e)
+}
+
+#[tauri::command]
+pub fn note_image_to_front(state: State<AppState>, id: i64) -> Res<()> {
+    to_front(&state.db.lock().unwrap(), id)
 }
 
 /// Xóa file ảnh không còn thuộc resource nào (resource bị xóa/gộp).

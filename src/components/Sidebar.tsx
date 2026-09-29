@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { AssetCounts, KIND_LABEL, Library, Tag, TagKind } from "../api";
+import { AssetCounts, CollectionInfo, KIND_LABEL, Library, Tag, TagKind } from "../api";
 import { Icon } from "./Icon";
 import { AppLogo } from "./AppLogo";
 import type { Route } from "../App";
@@ -12,11 +12,13 @@ interface Props {
   counts: { all: number; unclassified: number; review: number; favorites: number; missing: number; matches: number };
   mediaCounts: AssetCounts | null;
   pluginActive: boolean;
+  collections: CollectionInfo[];
+  onNewCollection: () => void;
 }
 
 const GROUPS: TagKind[] = ["app", "type", "function", "personal", "status"];
 
-export function Sidebar({ route, onNavigate, tags, libraries, counts, mediaCounts, pluginActive }: Props) {
+export function Sidebar({ route, onNavigate, tags, libraries, counts, mediaCounts, pluginActive, collections, onNewCollection }: Props) {
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({ personal: false, status: true });
   const [showEmpty, setShowEmpty] = useState<Record<string, boolean>>({});
 
@@ -65,6 +67,25 @@ export function Sidebar({ route, onNavigate, tags, libraries, counts, mediaCount
             <Item r={{ page: "media", view: "recent" }} icon="refresh" label="Dùng gần đây" count={mediaCounts.recent} />
           </div>
         )}
+
+        <div className="nav-section">
+          <div className="nav-heading nav-heading-row">
+            <span>Collections</span>
+            <button className="nav-add" onClick={onNewCollection} title="Tạo collection mới">
+              <Icon name="plus" size={12} />
+            </button>
+          </div>
+          {collections.length === 0 && <div className="nav-hint">Nhóm resource & file media theo ý bạn (vd: SFX vlog)</div>}
+          {collections.map((c) => (
+            <Item
+              key={c.id}
+              r={{ page: "resources", view: "collection", collectionId: c.id }}
+              icon="layers"
+              label={c.name}
+              count={c.resources + c.assets}
+            />
+          ))}
+        </div>
 
         {GROUPS.map((kind) => {
           let list = tags.filter((t) => t.kind === kind);

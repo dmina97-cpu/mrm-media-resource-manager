@@ -7,7 +7,7 @@ use rusqlite::{params, Connection, OptionalExtension};
 use serde::Serialize;
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
-use std::io::{Read, Write};
+use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use tauri::{AppHandle, Manager, State};
@@ -122,10 +122,10 @@ pub fn resolve_target(conn: &Connection, source_id: Option<i64>, asset_id: Optio
     Ok(SourceRef { abs: Path::new(&lib).join(rel), kind: "file".into(), stamp: format!("{modified}:{size}") })
 }
 
-/// Tham chiếu đến một file cụ thể: file thật trên đĩa hoặc entry trong ZIP.
+/// Tham chiếu đến một file cụ thể: file thật trên đĩa hoặc entry trong file nén (ZIP / 7Z / RAR).
 pub enum FileLoc {
     Disk(PathBuf),
-    Zip { archive: PathBuf, entry: String },
+    Archive { archive: PathBuf, entry: String },
 }
 
 fn safe_inner(inner: &str) -> Res<()> {
@@ -139,37 +139,23 @@ pub fn locate(src: &SourceRef, inner: &str) -> Res<FileLoc> {
     safe_inner(inner)?;
     match src.kind.as_str() {
         "folder" => Ok(FileLoc::Disk(if inner.is_empty() { src.abs.clone() } else { src.abs.join(inner) })),
-        "archive" if !inner.is_empty() => Ok(FileLoc::Zip { archive: src.abs.clone(), entry: inner.to_string() }),
+        "archive" if !inner.is_empty() => Ok(FileLoc::Archive { archive: src.abs.clone(), entry: inner.to_string() }),
         _ => Ok(FileLoc::Disk(src.abs.clone())),
     }
 }
 
-fn open_zip(path: &Path) -> Res<zip::ZipArchive<std::io::BufReader<std::fs::File>>> {
-    let f = std::fs::File::open(path).map_err(e)?;
-    zip::ZipArchive::new(std::io::BufReader::new(f)).map_err(e)
-}
-
-/// Trả về đường dẫn file trên đĩa; entry trong ZIP được giải nén riêng vào cache (không đụng file gốc).
+/// Trả về đường dẫn file trên đĩa; entry trong file nén được giải nén riêng vào cache (không đụng file gốc).
 fn materialize(state: &AppState, src: &SourceRef, loc: &FileLoc) -> Res<PathBuf> {
     match loc {
         FileLoc::Disk(p) => Ok(p.clone()),
-        FileLoc::Zip { archive, entry } => {
+        FileLoc::Archive { archive, entry } => {
             let dir = cache_dir(state).join("extract");
             std::fs::create_dir_all(&dir).map_err(e)?;
             let out = dir.join(format!("{}.{}", key_of(&[&archive.to_string_lossy(), entry, &src.stamp]), ext_of(entry)));
             if out.exists() {
                 return Ok(out);
             }
-            let mut z = open_zip(archive)?;
-            let mut f = z.by_name(entry).map_err(e)?;
-            if f.size() > EXTRACT_LIMIT {
-                return Err("File trong ZIP quá lớn để xem trước".into());
-            }
-            let tmp = out.with_extension("part");
-            let mut w = std::fs::File::create(&tmp).map_err(e)?;
-            std::io::copy(&mut f, &mut w).map_err(e)?;
-            w.flush().map_err(e)?;
-            std::fs::rename(&tmp, &out).map_err(e)?;
+            crate::archive::extract(archive, entry, &out, EXTRACT_LIMIT)?;
             Ok(out)
         }
     }
@@ -190,14 +176,13 @@ fn sort_entries(v: &mut [FileEntry]) {
     v.sort_by(|a, b| b.is_dir.cmp(&a.is_dir).then_with(|| a.name.to_lowercase().cmp(&b.name.to_lowercase())));
 }
 
-fn list_zip_dir(archive: &Path, dir: &str) -> Res<Vec<FileEntry>> {
-    let mut z = open_zip(archive)?;
+fn list_archive_dir(archive: &Path, dir: &str) -> Res<Vec<FileEntry>> {
+    let entries = crate::archive::list(archive)?;
     let prefix = if dir.is_empty() { String::new() } else { format!("{}/", dir.trim_end_matches('/')) };
     let mut dirs = std::collections::BTreeMap::<String, ()>::new();
     let mut out = Vec::new();
-    for i in 0..z.len() {
-        let Ok(f) = z.by_index_raw(i) else { continue };
-        let name = f.name().replace('\\', "/");
+    for f in &entries {
+        let name = f.name.clone();
         let Some(rest) = name.strip_prefix(&prefix) else { continue };
         if rest.is_empty() {
             continue;
@@ -206,11 +191,11 @@ fn list_zip_dir(archive: &Path, dir: &str) -> Res<Vec<FileEntry>> {
             Some((d, _)) => {
                 dirs.insert(d.to_string(), ());
             }
-            None if !f.is_dir() => out.push(FileEntry {
+            None if !f.is_dir => out.push(FileEntry {
                 name: rest.to_string(),
                 path: name.clone(),
                 is_dir: false,
-                size: f.size(),
+                size: f.size,
                 kind: file_kind(rest).into(),
             }),
             None => {}
@@ -251,10 +236,10 @@ pub async fn list_source_files(app: AppHandle, source_id: i64, dir: String) -> R
         match src.kind.as_str() {
             "folder" => list_disk_dir(&src.abs, &dir),
             "archive" => {
-                if ext_of(&src.abs.to_string_lossy()) != "zip" {
-                    return Err("Chưa hỗ trợ xem bên trong RAR/7Z".into());
+                if crate::archive::kind_of(&src.abs).is_none() {
+                    return Err("Chưa hỗ trợ xem bên trong định dạng nén này (hỗ trợ ZIP, 7Z, RAR)".into());
                 }
-                list_zip_dir(&src.abs, &dir)
+                list_archive_dir(&src.abs, &dir)
             }
             _ => {
                 let name = src.abs.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default();
@@ -386,7 +371,7 @@ pub fn thumb_for(state: &AppState, src: &SourceRef, inner: &str, max: u32) -> Re
     let loc = locate(src, inner)?;
     let name = match &loc {
         FileLoc::Disk(p) => p.to_string_lossy().to_string(),
-        FileLoc::Zip { entry, .. } => entry.clone(),
+        FileLoc::Archive { entry, .. } => entry.clone(),
     };
     let dir = cache_dir(state).join("thumbs");
     std::fs::create_dir_all(&dir).map_err(e)?;
@@ -493,7 +478,7 @@ pub async fn preview_file(app: AppHandle, source_id: Option<i64>, asset_id: Opti
         let loc = locate(&src, &path)?;
         let name = match &loc {
             FileLoc::Disk(p) => p.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default(),
-            FileLoc::Zip { entry, .. } => entry.rsplit('/').next().unwrap_or(entry).to_string(),
+            FileLoc::Archive { entry, .. } => entry.rsplit('/').next().unwrap_or(entry).to_string(),
         };
         let kind = file_kind(&name).to_string();
         let mut info = PreviewInfo { kind: kind.clone(), name: name.clone(), file: None, text: None, truncated: false, media: None, playable: false, size: 0 };
@@ -506,11 +491,10 @@ pub async fn preview_file(app: AppHandle, source_id: Option<i64>, asset_id: Opti
                         info.size = f.metadata().map(|m| m.len()).unwrap_or(0);
                         f.take(TEXT_LIMIT as u64).read_to_end(&mut buf).map_err(e)?;
                     }
-                    FileLoc::Zip { archive, entry } => {
-                        let mut z = open_zip(archive)?;
-                        let f = z.by_name(entry).map_err(e)?;
-                        info.size = f.size();
-                        f.take(TEXT_LIMIT as u64).read_to_end(&mut buf).map_err(e)?;
+                    FileLoc::Archive { archive, entry } => {
+                        let (head, size) = crate::archive::read_head(archive, entry, TEXT_LIMIT, &cache_dir(&state).join("extract"))?;
+                        buf = head;
+                        info.size = size;
                     }
                 }
                 info.truncated = info.size as usize > buf.len();
@@ -706,14 +690,17 @@ fn pick_cover(sources: Vec<(i64, SourceRef)>) -> Option<CoverRef> {
                     consider(&mut best, cover_score(&name, en.depth()), sid, rel, &name);
                 }
             }
-            "archive" if ext_of(&src.abs.to_string_lossy()) == "zip" => {
-                if let Ok(mut z) = open_zip(&src.abs) {
-                    for i in 0..z.len().min(3000) {
-                        let Ok(f) = z.by_index_raw(i) else { continue };
-                        if f.is_dir() || f.size() > 200 * 1024 * 1024 {
+            // RAR/7Z dạng solid phải giải nén cả phần trước file -> chỉ tìm ảnh bìa trong file nén < 1 GB
+            "archive"
+                if crate::archive::kind_of(&src.abs) == Some(crate::archive::Kind::Zip)
+                    || (crate::archive::kind_of(&src.abs).is_some() && std::fs::metadata(&src.abs).map(|m| m.len() < 1 << 30).unwrap_or(false)) =>
+            {
+                if let Ok(entries) = crate::archive::list(&src.abs) {
+                    for f in entries.iter().take(3000) {
+                        if f.is_dir || f.size > 200 * 1024 * 1024 {
                             continue;
                         }
-                        let full = f.name().to_string();
+                        let full = f.name.clone();
                         let name = full.rsplit('/').next().unwrap_or(&full).to_string();
                         let depth = full.matches('/').count() + 1;
                         // video trong ZIP phải giải nén mới xem được -> hạ điểm

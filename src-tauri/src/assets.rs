@@ -25,6 +25,7 @@ pub struct AssetQuery {
     pub tag_id: Option<i64>,
     pub ext: Option<String>,
     pub ai_category: Option<String>,
+    pub collection_id: Option<i64>,
     pub favorites: bool,
     pub recent: bool,
     /// tìm theo ý nghĩa (AI) ngoài khớp từ khóa
@@ -105,6 +106,10 @@ fn build_filter(q: &AssetQuery, sem: &[(i64, f32)]) -> (String, Vec<Value>) {
     }
     if let Some(id) = q.tag_id {
         w.push("EXISTS (SELECT 1 FROM asset_tags x WHERE x.asset_id = a.id AND x.tag_id = ?)".into());
+        p.push(Value::Integer(id));
+    }
+    if let Some(id) = q.collection_id {
+        w.push("EXISTS (SELECT 1 FROM collection_assets y WHERE y.asset_id = a.id AND y.collection_id = ?)".into());
         p.push(Value::Integer(id));
     }
     if let Some(c) = q.ai_category.as_deref().filter(|c| !c.is_empty()) {
@@ -576,6 +581,43 @@ pub fn reveal_asset(state: State<AppState>, id: i64) -> Res<()> {
         return Err("File hiện không truy cập được".into());
     }
     tauri_plugin_opener::reveal_item_in_dir(&path).map_err(e)
+}
+
+/// Dùng một ảnh/video trong Media Browser làm ảnh bìa cho resource chứa nó.
+#[tauri::command]
+pub fn set_cover_from_asset(state: State<AppState>, id: i64) -> Res<i64> {
+    let conn = state.db.lock().unwrap();
+    let (rid, lib, rel, mt): (Option<i64>, i64, String, String) = conn
+        .query_row("SELECT resource_id, library_id, rel_path, media_type FROM media_assets WHERE id = ?1", [id], |r| {
+            Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?))
+        })
+        .map_err(e)?;
+    let rid = rid.ok_or("File này không thuộc resource nào")?;
+    if mt == "audio" {
+        return Err("Chỉ dùng ảnh hoặc video làm ảnh bìa".into());
+    }
+    let norm = |p: &str| p.replace('\\', "/").to_lowercase();
+    let want = norm(&rel);
+    // nguồn (folder/file) của resource chứa file này -> đường dẫn bên trong nguồn
+    let mut s = conn
+        .prepare("SELECT id, rel_path, kind FROM resource_sources WHERE resource_id = ?1 AND library_id = ?2 AND kind IN ('folder','file')")
+        .map_err(e)?;
+    let sources: Vec<(i64, String, String)> = s.query_map(params![rid, lib], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?))).map_err(e)?.flatten().collect();
+    let (sid, inner) = sources
+        .iter()
+        .find_map(|(sid, srel, kind)| {
+            let base = norm(srel);
+            if kind == "file" && base == want {
+                return Some((*sid, String::new()));
+            }
+            want.strip_prefix(&format!("{base}/")).map(|_| (*sid, rel.replace('\\', "/")[base.len() + 1..].to_string()))
+        })
+        .ok_or("Không tìm thấy nguồn chứa file này")?;
+    let kind = if mt == "video" { "video" } else { "image" };
+    let cover = serde_json::json!({ "source_id": sid, "kind": kind, "path": inner });
+    conn.execute("UPDATE resources SET cover = ?1, cover_user = 1 WHERE id = ?2", params![cover.to_string(), rid]).map_err(e)?;
+    db::touch(&conn, rid).map_err(e)?;
+    Ok(rid)
 }
 
 /// Ảnh nhỏ hiển thị dưới con trỏ khi kéo file ra app khác.

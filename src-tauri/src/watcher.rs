@@ -107,7 +107,10 @@ pub fn refresh(app: &AppHandle) {
                     watchers.insert(id, w);
                 }
             }
-            Err(err) => eprintln!("watcher error for {path}: {err}"),
+            Err(err) => {
+                eprintln!("watcher error for {path}: {err}");
+                crate::diag::note("Theo dõi thư mục", &err.to_string());
+            }
         }
     }
 }

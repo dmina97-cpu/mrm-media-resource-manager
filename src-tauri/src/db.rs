@@ -3,7 +3,7 @@
 use rusqlite::{params, Connection, OptionalExtension};
 use std::path::Path;
 
-pub const SCHEMA_VERSION: i64 = 10;
+pub const SCHEMA_VERSION: i64 = 11;
 /// Phiên bản "hợp đồng" dữ liệu giữa MRM và plugin DaVinci (các view api_* và bảng asset_*).
 /// Tăng khi thay đổi làm plugin cũ đọc/ghi sai.
 pub const PLUGIN_CONTRACT: i64 = 1;
@@ -397,6 +397,13 @@ pub fn migrate(conn: &Connection) -> rusqlite::Result<()> {
                  created_at INTEGER NOT NULL
              );
              PRAGMA user_version = 10;",
+        )?;
+    }
+    if version < 11 {
+        // Xem được bên trong RAR/7Z -> tìm lại ảnh bìa tự động cho resource trước đây "không có ảnh bìa"
+        conn.execute_batch(
+            "UPDATE resources SET cover = NULL WHERE cover_user = 0 AND cover LIKE '%\"none\"%';
+             PRAGMA user_version = 11;",
         )?;
     }
     set_setting(conn, "plugin_contract", &PLUGIN_CONTRACT.to_string())?;
