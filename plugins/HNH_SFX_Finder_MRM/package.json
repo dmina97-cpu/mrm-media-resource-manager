@@ -1,0 +1,7 @@
+{
+  "name": "hnh-sfx-finder-mrm",
+  "version": "0.12.1",
+  "description": "Local intelligent SFX browser for DaVinci Resolve Studio 20.2",
+  "main": "main.js",
+  "private": true
+}

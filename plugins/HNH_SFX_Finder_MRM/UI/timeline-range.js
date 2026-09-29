@@ -1,0 +1,11 @@
+(() => {
+ const el=id=>document.getElementById(id);let reading=false,busy=false,latestSeconds=0;
+ const active=()=>el('insertMode').value==='timeline';
+ function label(){el('insertBtn').textContent=active()?'+ Chèn vào I/O Timeline':trimState.active?'+ Insert đoạn chọn':'+ Insert tại Playhead';el('timelineRangeBox').hidden=!active();}
+ async function refresh(){if(reading||!active())return;reading=true;el('timelineRangeRefresh').disabled=true;el('timelineRangeStatus').textContent='Đang đọc I/O Timeline…';try{const r=await window.hnh.getTimelineRange();latestSeconds=r.ok?r.seconds:0;el('timelineRangeStatus').textContent=r.ok?`${r.name} • vùng tối đa ${r.seconds.toFixed(3)}s • ưu tiên SFX vừa vùng` :r.error;render();}catch(e){latestSeconds=0;el('timelineRangeStatus').textContent=e.message;}finally{reading=false;el('timelineRangeRefresh').disabled=false;}}
+ async function insert(){if(busy||!state.selected)return;const file={...state.selected},duration=previewDuration(),request={audioOptions:window.HnhAudioOptions?.value(),file,trackIndex:Number(el('trackSelect').value),inSeconds:trimState.in,outSeconds:trimState.active?trimState.out:duration,duration};busy=true;el('insertBtn').disabled=true;el('insertMode').disabled=true;showStatus('Đang đọc vùng mới nhất và chèn SFX trong giới hạn I/O…');try{const r=await window.hnh.insertTimelineRange(request);showStatus(r.ok?`Đã chèn ${file.filename} vào A${r.trackIndex} • ${r.frames} frame (${r.seconds.toFixed(3)}s)${r.limitedByTimeline?' • đã cắt tại Out timeline':''}${r.warning?' • '+r.warning:''}`:`Chèn lỗi: ${r.error}${r.warning?' • '+r.warning:''}`);if(r.ok){await persistUsage(file);await window.HnhAudioOptions?.afterInsert(r);}}catch(e){showStatus('Chèn lỗi: '+e.message);}finally{busy=false;el('insertMode').disabled=false;el('insertBtn').disabled=!state.resolveReady;await refresh();}}
+ el('insertMode').onchange=()=>{if(!active())latestSeconds=0;label();render();refresh();};el('timelineRangeRefresh').onclick=refresh;
+ el('timelineRangeControls').addEventListener('keydown',e=>e.stopPropagation());
+ window.addEventListener('focus',refresh);document.addEventListener('visibilitychange',()=>{if(!document.hidden)refresh();});
+ window.HnhTimelineRange={active,insert,label,refresh,fitSeconds:()=>active()?latestSeconds:0};label();
+})();

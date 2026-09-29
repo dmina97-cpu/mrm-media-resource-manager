@@ -1,0 +1,130 @@
+[
+  {
+    "version": "0.12.1",
+    "notes": "Kiểm tra cập nhật từ repo chung với MRM (github.com/dmina97-cpu/mrm-media-resource-manager). Phiên bản plugin được đọc từ tên gói zip, nên bản phát hành chỉ có MRM không làm plugin báo nhầm."
+  },
+  {
+    "version": "0.12.0",
+    "notes": "Plugin lai: máy không có MRM thì chạy độc lập như bản gốc (tự quét thư mục, tự lưu tag/yêu thích); máy có MRM thì tự dùng chung thư viện, tag, yêu thích với MRM. Cài MRM sau: thư viện và dữ liệu của plugin tự chuyển sang MRM."
+  },
+  {
+    "version": "0.11.2",
+    "notes": "Dùng chung dữ liệu với MRM: MRM quét thư viện, plugin đọc/ghi tag, yêu thích, lượt dùng. Sửa kết nối bridge DaVinci (ID plugin theo manifest), giảm giật khi MRM đang chạy, tự chuyển dữ liệu từ bản 0.10.2."
+  },
+  {
+    "version": "0.10.2",
+    "notes": "Đổi Chèn vào I/O Timeline thành Chèn trong vùng I/O: SFX ngắn được giữ nguyên, SFX dài mới cắt tại Out; không lặp, kéo giãn hoặc thêm khoảng lặng. In/Out trên waveform tiếp tục giới hạn đoạn nguồn. Track thông minh chỉ kiểm tra đúng phần audio thực tế sẽ chiếm. Khi đã đọc I/O, danh sách Liên quan nhất ưu tiên SFX nằm gọn trong vùng và gần độ dài vùng nhất."
+  },
+  {
+    "version": "0.10.1",
+    "notes": "Auto Bin: tùy chỉnh tên/nhóm hoặc dùng Bin có sẵn trước khi quét; thêm khôi phục cấu hình mặc định. Kéo file SFX gốc sang Resolve bằng tay nắm cạnh tên. Track âm thanh thông minh: ưu tiên track chọn, tìm track đủ chỗ trống, bỏ qua track khóa/tắt; có thể tạo A1 mới hoặc tạo dưới cùng. Áp dụng cho chèn tại playhead và In/Out timeline. Giữ các chức năng hiện tại."
+  },
+  {
+    "version": "0.10.0",
+    "notes": "Quick Auto Bin: quét media trực tiếp trong Master hoặc Bin hiện tại, xem trước phân loại, tạo/dùng lại Bin thật 01_VIDEO, 02_AUDIO, 03_IMAGE, 04_OTHER trong Resolve. Giữ nguyên Bin con; bỏ qua timeline/clip đặc biệt hoặc loại chưa xác định an toàn. Kiểm tra thay đổi trước khi chạy, ghi nhật ký và hỗ trợ hoàn tác lần gần nhất. Nếu lỗi sẽ thử phục hồi media đã chuyển; giữ Bin trống. Bao gồm bản sửa installer không phụ thuộc PATH. Cập nhật nhỏ: thêm icon vào Bin mới, dùng lại cả tên cũ và tên có icon, giữ mã 0.10.0. Sửa kẹt Auto Bin sau Ctrl+Z: đối chiếu ID/vị trí hiện tại, nhận clip đã về Bin gốc dù Bin đích không còn. Liệt kê clip ở nơi khác hoặc không tìm thấy; có Kết thúc lần cũ sau xác nhận để lưu trữ nhật ký, giữ hiện trạng và quét lại. Tùy chỉnh nhóm và tên Bin đích, chọn Bin con có sẵn. Timeline/Compound mặc định tắt; Timeline theo ID project, Compound chỉ khi Resolve trả đúng loại Compound Clip. Giữ phiên bản 0.10.0."
+  },
+  {
+    "version": "0.9.10",
+    "notes": "Tối ưu thumbnail cho ổ đọc chậm: chỉ tải clip đang hiện trong khung danh sách, chờ khoảng 180 ms sau khi ngừng cuộn, tối đa một yêu cầu mỗi lần. Hủy thumbnail đang xử lý nếu đã cuộn khỏi màn hình; bỏ việc cũ khi đổi tab/bộ lọc. Giữ thumbnail đã tải và trạng thái tab; List/Details không tải thumbnail."
+  },
+  {
+    "version": "0.9.9",
+    "notes": "Giữ trạng thái tab trong phiên làm việc: danh sách và thumbnail đã tải, trang/vị trí cuộn, file đang chọn, vị trí preview video, In/Out và tùy chọn chèn. Chuyển tab dừng phát; quay lại không tự phát hoặc tải lại preview đã mở. Ảnh/video giữ trạng thái riêng; các file chọn nhiều cũng được nhớ theo tab. Tự cập nhật danh sách nếu dữ liệu thư viện thay đổi."
+  },
+  {
+    "version": "0.9.8",
+    "notes": "Sắp xếp Giới thiệu & Hướng dẫn: nhà phát triển, thiết lập ban đầu, hướng dẫn từng chức năng. Tách giải mã thumbnail sang tiến trình riêng, hủy tác vụ cũ và giới hạn 6 giây mỗi file. Auto preview âm thanh luôn bật khi chọn SFX; vẫn giữ âm lượng/tắt tiếng riêng."
+  },
+  {
+    "version": "0.9.7",
+    "notes": "Cập nhật mở cửa sổ riêng; bỏ kiểm tra cập nhật và lịch sử khỏi Giới thiệu & Hướng dẫn, giữ nội dung hướng dẫn. Thanh Track/Import/Chèn tại Playhead cố định dưới preview ảnh/video, không phải cuộn để tìm. Đổi Thư viện thành Cài đặt, + Thư viện thành + Thư mục. Sửa hiển thị độ dài đoạn sau khi video tải metadata."
+  },
+  {
+    "version": "0.9.6",
+    "notes": "Thư viện có Cache & chẩn đoán: xem dung lượng/số file, xóa riêng waveform hoặc thumbnail với xác nhận. Giữ tags, Favorites, index và file gốc. Xuất JSON phiên bản, kết nối và số liệu tổng hợp để hỗ trợ; không chứa tên file, đường dẫn thư viện hoặc nội dung tag."
+  },
+  {
+    "version": "0.9.5",
+    "notes": "Tối ưu tìm kiếm/Favorites/tags và sắp xếp thư viện lớn. Chọn SFX không dựng lại danh sách. Giới hạn 2 yêu cầu thumbnail, cache chuỗi tối đa 16 MiB/80 mục, bỏ tác vụ và preview đã cũ. Waveform giải mã tuần tự, ưu tiên lựa chọn mới. Thư viện lớn chờ 120 ms sau khi gõ; chọn media chờ 70 ms để tránh tải thừa."
+  },
+  {
+    "version": "0.9.4",
+    "notes": "Preview video: Space phát/dừng, mũi tên tua 1 giây, Shift+mũi tên tua 5 giây, I/O đánh dấu. Phát/lặp đoạn In/Out, về đầu/cuối đoạn và hiện độ dài. Nhớ âm lượng/tắt tiếng preview riêng trên máy, không ảnh hưởng âm thanh khi chèn. Chuyển file/tab dừng preview; không tự phát khi mở lại."
+  },
+  {
+    "version": "0.9.3",
+    "notes": "Nút Nối lại cạnh từng thư viện: chọn thư mục mới, đối chiếu với index/metadata hiện tại để gộp tags và yêu thích. Không cần file backup có sẵn. Khớp mã nội dung được tự nhận; khớp vị trí/kích thước cần xác nhận. Waveform chỉ chuyển khi nội dung khớp. Giữ thư viện cũ, hỗ trợ mục chờ và hoàn tác."
+  },
+  {
+    "version": "0.9.2",
+    "notes": "Sidebar Tags cho ảnh/video với số file, lọc nhiều tag và nhớ riêng từng tab. Thêm nhanh/gỡ tag trên file; gợi ý tags từ cả ba loại tài nguyên. Quản lý đổi tên/gộp tag cho dữ liệu đang dùng, cập nhật bộ lọc và tạo bản sao settings trước thay đổi. Backup giữ bộ lọc nhiều tags của Smart Collections."
+  },
+  {
+    "version": "0.9.1",
+    "notes": "Ảnh/video có List, Details và Thumbnail với cỡ ảnh tùy chỉnh. Sắp xếp theo tên, loại, thời lượng, ngày thêm/ngày sửa; bấm cột trong Details. List/Details không tạo thumbnail. Nhớ bộ lọc, trang, file chọn và vị trí cuộn riêng từng tab; mở lại plugin khôi phục trạng thái duyệt trên máy. Không tự phát preview."
+  },
+  {
+    "version": "0.9.0",
+    "notes": "Changelog gộp các phiên bản bỏ qua, thông báo Có gì mới sau cài đặt và lịch sử offline. Xuất đoạn SFX In/Out thành WAV PCM 24-bit, 48 kHz; giữ nguyên file nguồn và không áp dụng âm lượng preview.\n• Cập nhật và hướng dẫn hiện cạnh tên app; bộ lọc tìm kiếm thường trực thành hai hàng gọn."
+  },
+  {
+    "version": "0.8.5",
+    "notes": "Tự tìm track trống cho video kèm tiếng; tùy chọn tạo track mới. Giữ vị trí cuộn khi chọn video/đọc metadata. Chẩn đoán lỗi A/V chi tiết hơn."
+  },
+  {
+    "version": "0.8.4",
+    "notes": "Sidebar Tags cho SFX, số lượng theo tag, tìm và lọc nhiều tags. Thêm nhanh + Tag với gợi ý, giữ tags cũ; gỡ nhãn trên file đang chọn."
+  },
+  {
+    "version": "0.8.3",
+    "notes": "Giao diện gọn: bộ lọc nổi, danh sách SFX thấp hơn, menu cập nhật/hướng dẫn, sửa tags cạnh preview, thay đổi chiều cao waveform."
+  },
+  {
+    "version": "0.8.2",
+    "notes": "Chèn nhạc theo In/Out Timeline, đọc lại vùng trước khi chèn, chọn điểm In nguồn, kiểm tra track trống/độ dài nhạc và khôi phục dấu I/O."
+  },
+  {
+    "version": "0.8.1",
+    "notes": "Nút Cập nhật mở nhanh; mục cập nhật ở đầu hướng dẫn. Xem lại patch note trong plugin."
+  },
+  {
+    "version": "0.8.0",
+    "notes": "Chèn video kèm âm thanh, chọn track V/A và liên kết clip. Chọn nhiều tài nguyên để thêm/gỡ tags và Favorites."
+  },
+  {
+    "version": "0.7.4",
+    "notes": "Kiểm tra bản mới từ GitHub Releases: tự kiểm tra hằng ngày, kiểm tra thủ công, hoãn hoặc bỏ qua phiên bản và mở trang tải."
+  },
+  {
+    "version": "0.7.3",
+    "notes": "Duration dễ đọc ở dòng SFX và thumbnail video."
+  },
+  {
+    "version": "0.7.2",
+    "notes": "Ngày thêm vào thư viện; lọc hôm nay, 7 ngày, khoảng ngày. Danh sách tags có số lượng, lưu điều kiện ngày trong Smart Collections."
+  },
+  {
+    "version": "0.7.1",
+    "notes": "Chọn loại tài nguyên cần quét cho từng thư mục: âm thanh, ảnh, video. Bỏ loại quét vẫn giữ tags/Favorites."
+  },
+  {
+    "version": "0.7.0",
+    "notes": "Tab Hình ảnh và Video, preview, thumbnail cache, tìm/lọc dùng chung thư viện; chèn ảnh có thời lượng và video theo In/Out."
+  },
+  {
+    "version": "0.6.1",
+    "notes": "Giới thiệu và hướng dẫn sử dụng tích hợp trong plugin, thông tin nhà phát triển và liên hệ."
+  },
+  {
+    "version": "0.6.0",
+    "notes": "Sao lưu và chuyển thư viện: index, tags, Favorites, settings, waveform; đối chiếu và nối lại file khi đổi đường dẫn."
+  },
+  {
+    "version": "0.5.1",
+    "notes": "Cải thiện khởi động: hiện index đã lưu trước, đối soát thư viện ở nền và tự kết nối lại Resolve."
+  },
+  {
+    "version": "0.5.0",
+    "notes": "Tùy chọn hiện tags cạnh tên SFX và duyệt/lọc theo cây thư mục."
+  }
+]

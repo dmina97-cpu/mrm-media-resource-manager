@@ -1,0 +1,2 @@
+const {test}=require('node:test'),assert=require('node:assert/strict'),search=require('../UI/search');
+test('cached search invalidates changed tags, basename and folders',()=>{const f={basename:'air',folders:['whoosh']},q=search.compile('metal');assert.equal(search.score(f,q,[]),0);assert(search.score(f,q,['metal'])>0);assert.equal(search.score(f,q,[]),0);f.basename='metal';assert(search.score(f,q,[])>0);f.basename='air';f.folders=['metal'];assert(search.score(f,q,[])>0);f.folders=[];assert.equal(search.score(f,q,[]),0);});

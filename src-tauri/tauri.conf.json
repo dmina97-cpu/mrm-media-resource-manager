@@ -1,0 +1,55 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "MRM",
+  "version": "0.9.0",
+  "identifier": "com.nink.vault",
+  "build": {
+    "beforeDevCommand": "npm run dev",
+    "devUrl": "http://localhost:1420",
+    "beforeBuildCommand": "npm run build",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "MRM - Media Resource Manager",
+        "width": 1440,
+        "height": 900,
+        "minWidth": 1000,
+        "minHeight": 620,
+        "center": true
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self' ipc: http://ipc.localhost; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: asset: http://asset.localhost; media-src 'self' blob: asset: http://asset.localhost; frame-src asset: http://asset.localhost",
+      "assetProtocol": {
+        "enable": true,
+        "scope": []
+      }
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": [
+      "nsis"
+    ],
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "shortDescription": "Media Resource Manager for Editors",
+    "externalBin": [
+      "binaries/ffmpeg"
+    ],
+    "publisher": "Phạm Nam",
+    "copyright": "© 2026 Phạm Nam",
+    "windows": {
+      "nsis": {
+        "template": "windows/installer.nsi"
+      }
+    }
+  }
+}

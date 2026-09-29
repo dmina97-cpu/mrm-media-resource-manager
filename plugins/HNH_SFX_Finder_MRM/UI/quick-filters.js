@@ -1,0 +1,12 @@
+window.HnhQuickFilters=(()=>{
+ const cache={};
+ const el=id=>document.getElementById(id),tagId=p=>p==='audio'?'tagFilter':'mediaTagFilter';
+ function values(p){return {addedMode:el(p+'AddedMode').value,addedFrom:el(p+'AddedFrom').value,addedTo:el(p+'AddedTo').value};}
+ function matcher(p){const v=values(p),tag=el(tagId(p)).value;return (f,tags=[])=>HnhDates.matches(f.addedAt,v.addedMode,v.addedFrom,v.addedTo)&&(p==='audio'||!tag||tags.some(t=>HnhSearch.norm(t)===HnhSearch.norm(tag)));}
+ function matches(p,f,tags=[]){const v=values(p);if(!HnhDates.matches(f.addedAt,v.addedMode,v.addedFrom,v.addedTo))return false;const tag=el(tagId(p)).value;return p==='audio'||!tag||tags.some(t=>HnhSearch.norm(t)===HnhSearch.norm(tag));}
+ function tags(p,files,metadata,kind=null){if(cache[p]?.files===files&&cache[p]?.metadata===metadata&&cache[p]?.kind===kind)return;cache[p]={files,metadata,kind};const select=el(tagId(p)),before=select.value,counts=new Map();for(const f of files){if(kind&&HnhMediaTypes.fileKind(f)!==kind)continue;const unique=new Map((metadata[f.path]||[]).map(t=>[HnhSearch.norm(t),t]));for(const [key,label] of unique){const entry=counts.get(key)||{label,count:0};entry.count++;counts.set(key,entry);}}select.replaceChildren(new Option('Mọi tags',''));for(const {label,count} of [...counts.values()].sort((a,b)=>a.label.localeCompare(b.label)))select.add(new Option(label+' ('+count+')',label));if(before&&!Array.from(select.options).some(o=>HnhSearch.norm(o.value)===HnhSearch.norm(before)))select.add(new Option(before+' (0)',before));select.value=[...select.options].find(o=>HnhSearch.norm(o.value)===HnhSearch.norm(before))?.value||'';el(p+'TagHint').textContent=counts.size?'Số file theo tag trong tab này':'Chưa có tag: chọn file → nhập tags → Lưu tags.';}
+ function refresh(p){el(p+'AddedRange').hidden=el(p+'AddedMode').value!=='custom';if(p==='audio')render();else window.HnhMedia?.filterChanged();}
+ function restore(p,f){el(p+'AddedMode').value=f.addedMode||'all';el(p+'AddedFrom').value=f.addedFrom||'';el(p+'AddedTo').value=f.addedTo||'';el(p+'AddedRange').hidden=el(p+'AddedMode').value!=='custom';}
+ for(const p of ['audio','media']){for(const suffix of ['AddedMode','AddedFrom','AddedTo'])el(p+suffix).addEventListener('change',()=>refresh(p));el(tagId(p)).addEventListener('change',()=>refresh(p));el(p+'QuickReset').onclick=()=>{restore(p,{});el(tagId(p)).value='';refresh(p);};}
+ return {values,matcher,matches,tags,restore};
+})();

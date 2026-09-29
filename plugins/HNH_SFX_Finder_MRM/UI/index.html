@@ -1,0 +1,220 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; media-src 'self' file:; style-src 'self'; script-src 'self'; img-src 'self' data: file:;" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>HNH SFX Finder</title>
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="media-browser.css" />
+<link rel="stylesheet" href="compact-layout.css" />
+<link rel="stylesheet" href="sidebar-tags.css" /><link rel="stylesheet" href="unified-tags.css" /><link rel="stylesheet" href="auto-bin.css" /><link rel="stylesheet" href="audio-tools.css" /></head>
+<body>
+  <header>
+    <div>
+      <h1>HNH SFX Finder <span class="version">v0.12.1</span></h1>
+      <p id="statusLine">Đang khởi tạo…</p>
+    </div>
+    <div class="header-actions"><button id="autoBinOpen" class="ghost" aria-haspopup="dialog">Auto Bin</button><button id="updateShortcut" class="ghost" aria-haspopup="dialog">Cập nhật</button><button id="helpBtn" class="ghost" aria-haspopup="dialog">Giới thiệu &amp; Hướng dẫn</button><button id="settingsBtn" class="ghost">Cài đặt</button></div>
+    <nav class="media-tabs" aria-label="Loại tài nguyên"><button data-media-tab="audio" aria-pressed="true">Âm thanh</button><button data-media-tab="image" aria-pressed="false">Hình ảnh</button><button data-media-tab="video" aria-pressed="false">Video</button><button id="batchToggle" aria-pressed="false">Chọn nhiều</button></nav>
+    <section id="batchBar" hidden aria-label="Chỉnh nhiều file"><span id="batchCount">Đã chọn 0 file</span><button id="batchPage" class="secondary">Chọn các file đang hiện</button><button id="batchClear" class="secondary">Bỏ chọn</button><input id="batchTags" placeholder="Tags, cách nhau bằng dấu phẩy" aria-label="Tags hàng loạt"/><button data-batch-action="addTags">Thêm tag</button><button data-batch-action="removeTags" class="secondary">Xóa tag</button><button data-batch-action="favorite">★ Thêm yêu thích</button><button data-batch-action="unfavorite" class="secondary">Bỏ yêu thích</button><span id="batchStatus" role="status"></span></section>
+  </header>
+
+  <section id="mediaWorkspace" hidden aria-label="Thư viện hình ảnh và video">
+    <div class="media-toolbar"><input id="mediaSearch" placeholder="Tìm theo tên, folder hoặc tags…" aria-label="Tìm tài nguyên"/><select id="mediaFolder" aria-label="Lọc folder"><option value="">Mọi thư mục</option></select><select id="mediaMode" aria-label="Lọc yêu thích"><option value="all">Tất cả</option><option value="favorites">★ Yêu thích</option><option value="recent">Gần đây</option></select><button id="mediaLibrary" class="secondary">+ Thư mục</button></div>
+<div class="quick-date-row"><label>Ngày thêm <select id="mediaAddedMode"><option value="all">Mọi ngày</option><option value="today">Hôm nay</option><option value="week">7 ngày qua</option><option value="custom">Khoảng ngày</option><option value="unknown">Chưa rõ ngày thêm</option></select></label><span id="mediaAddedRange" hidden><input id="mediaAddedFrom" type="date" aria-label="Ngày thêm từ"/> – <input id="mediaAddedTo" type="date" aria-label="Ngày thêm đến"/></span><select id="mediaTagFilter" aria-label="Lọc tag"><option value="">Mọi tags</option></select><button id="mediaQuickReset" class="secondary">Bỏ lọc ngày / tag</button><span id="mediaTagHint" class="hint"></span></div>
+    <div class="media-view-controls"><label>Hiển thị <select id="mediaView"><option value="list">List</option><option value="details">Details</option><option value="thumbnail">Thumbnail</option></select></label><label id="mediaSizeLabel">Cỡ ảnh <input id="mediaThumbSize" type="range" min="100" max="240" step="20" value="160" /></label><label>Sắp xếp <select id="mediaSort"><option value="name">Tên</option><option value="added">Ngày thêm</option><option value="modified">Ngày sửa</option><option value="duration">Thời lượng</option><option value="type">Định dạng</option></select></label><button id="mediaDirection" class="secondary" aria-label="Đổi chiều sắp xếp">↑ Tăng dần</button></div><div class="media-layout"><div class="media-browser"><div class="media-pagination"><span id="mediaCount"></span><button id="mediaPrev" class="secondary">Trước</button><span id="mediaPage"></span><button id="mediaNext" class="secondary">Sau</button></div><div id="mediaGrid" aria-label="Danh sách tài nguyên"></div></div>
+      <aside class="media-preview"><div class="media-preview-scroll"><h2 id="mediaName">Chọn tài nguyên</h2><div class="media-viewer"><img id="mediaImage" hidden alt="Ảnh đang chọn"/><video id="mediaVideo" controls preload="metadata" hidden></video><span id="mediaEmpty">Chọn file để xem thử</span></div><p id="mediaPreviewStatus" role="status"></p>
+        <div class="media-tags"><input id="mediaTags" placeholder="Tags, cách nhau bằng dấu phẩy" aria-label="Tags cho tài nguyên" disabled/><button id="mediaSaveTags" disabled>Lưu tags</button><button id="mediaFavorite" disabled>☆ Yêu thích</button></div>
+        <div id="mediaImageOptions"><label>Thời lượng ảnh (giây) <input id="mediaStillSeconds" type="number" min="0.04" max="3600" step="0.1" value="5"/></label></div>
+        <div id="mediaVideoOptions" hidden><div class="media-range"><button id="mediaMarkIn" class="secondary">In [I]</button><input id="mediaIn" type="number" min="0" step="0.001" value="0" aria-label="Video In (giây)"/><button id="mediaMarkOut" class="secondary">Out [O]</button><input id="mediaOut" type="number" min="0" step="0.001" aria-label="Video Out (giây)"/><button id="mediaWhole" class="secondary">Toàn bộ</button></div><label><input type="checkbox" id="mediaUseRange"/> Chèn đoạn In/Out</label><div class="video-audio-options"><label><input id="mediaIncludeAudio" type="checkbox"/> Kèm âm thanh &amp; liên kết clip</label><label><input id="mediaAutoTracks" type="checkbox" checked/> Tự tìm track trống</label><label><input id="mediaCreateTracks" type="checkbox"/> Tạo track khi cần</label><label>Audio track <select id="mediaAudioTrack" aria-label="Audio track cho video"><option value="">Chọn audio track</option></select></label><p class="hint">Cùng In/Out cho hình và tiếng. Ưu tiên track đã chọn; tự tìm vùng trống đủ độ dài nếu bật. Chừa 2 frame ở cuối vùng. Nguồn nhiều track hoặc audio liên kết ngoài cần chèn trong Resolve.</p></div></div>
+        <div class="media-preview-aux"><button id="mediaRefreshTracks" class="secondary">Tải lại track</button><button id="mediaReveal" class="secondary" disabled>Mở thư mục</button></div></div><div class="media-preview-fixed"><div class="media-insert"><label>Track <select id="mediaTrack" aria-label="Track video"><option value="">Chưa có track</option></select></label><button id="mediaImport" disabled>Import</button><button id="mediaInsert" disabled>+ Chèn tại Playhead</button></div><p id="mediaActionStatus" role="status">Thêm folder trong Cài đặt để bắt đầu. Preview và import phụ thuộc định dạng/codec.</p></div>
+      </aside></div>
+  </section>
+  <main>
+    <section class="searchbar">
+      <input id="searchInput" autofocus placeholder="Tìm: whoosh nhanh, tiếng kim loại rơi, impact mạnh…" />
+      <button id="clearBtn" class="ghost">Xóa</button>
+    </section>
+
+<div class="quick-date-row"><label>Ngày thêm <select id="audioAddedMode"><option value="all">Mọi ngày</option><option value="today">Hôm nay</option><option value="week">7 ngày qua</option><option value="custom">Khoảng ngày</option><option value="unknown">Chưa rõ ngày thêm</option></select></label><span id="audioAddedRange" hidden><input id="audioAddedFrom" type="date" aria-label="Ngày thêm từ"/> – <input id="audioAddedTo" type="date" aria-label="Ngày thêm đến"/></span><button id="audioQuickReset" class="secondary">Bỏ lọc ngày / tag</button><span id="audioTagHint" class="hint"></span></div>
+    <section class="chips" id="chips">
+      <button data-query="" class="chip active">Tất cả</button>
+      <button data-query="whoosh transition" class="chip">Whoosh</button>
+      <button data-query="impact hit boom" class="chip">Impact</button>
+      <button data-query="ui click pop notification" class="chip">UI</button>
+      <button data-query="riser rise" class="chip">Riser</button>
+      <button data-query="vehicle car motorcycle engine" class="chip">Vehicle</button>
+      <button data-mode="favorites" class="chip">★ Yêu thích</button>
+      <button data-mode="recent" class="chip">Gần đây</button>
+    </section>
+
+    <section class="toolbar">
+      <span id="resultCount">0 SFX</span>
+      <label class="check"><input id="showNameTags" type="checkbox" checked /> Hiện tag cạnh tên SFX</label>
+      <label class="check"><input id="autoPreview" type="checkbox" checked disabled /> Auto preview luôn bật</label>
+      <select id="extensionFilter" title="Lọc định dạng">
+        <option value="all">Mọi định dạng</option>
+        <option value="wav">WAV</option>
+        <option value="mp3">MP3</option>
+        <option value="flac">FLAC</option>
+        <option value="aiff">AIFF/AIF</option>
+        <option value="m4a">M4A/AAC</option>
+        <option value="ogg">OGG</option>
+      </select>
+      <select id="libraryFilter" title="Lọc thư viện"><option value="all">Mọi thư viện</option></select>
+      <select id="sortMode">
+        <option value="relevance">Liên quan nhất</option>
+        <option value="name">Tên A–Z</option>
+        <option value="recent">Mới sửa gần đây</option>
+      </select>
+    </section>
+
+    <section class="toolbar advanced">
+      <label>Thời lượng <input id="durationMin" type="number" min="0" step="0.1" placeholder="Từ (s)" aria-label="Thời lượng tối thiểu" /> – <input id="durationMax" type="number" min="0" step="0.1" placeholder="Đến (s)" aria-label="Thời lượng tối đa" /></label>
+      <select id="tagFilter" aria-label="Lọc tag"><option value="">Mọi tags</option></select>
+      <select id="collectionSelect" aria-label="Smart Collection"><option value="">Smart Collections</option></select>
+      <button id="saveCollection" class="secondary">Lưu bộ lọc</button>
+      <button id="deleteCollection" class="secondary">Xóa bộ lọc</button>
+      <span id="metadataStatus"></span>
+    </section>
+    <section class="toolbar advanced"><input id="collectionName" maxlength="80" placeholder="Tên bộ lọc để lưu" aria-label="Tên Smart Collection" /><input id="tagsInput" placeholder="Tag cho SFX đang chọn, cách nhau bằng dấu phẩy" aria-label="Tags cho SFX đang chọn" disabled /><button id="saveTags" class="secondary" disabled>Lưu tags</button></section>
+    <div class="folder-toolbar"><label class="check"><input id="showFolders" type="checkbox" checked /> Duyệt thư mục</label><span id="folderCurrent">Mọi thư mục</span><button id="clearFolder" class="secondary" hidden>Bỏ lọc thư mục</button></div>
+    <div id="browserArea" class="browser-area with-folders"><aside id="folderBrowser" class="folder-browser"><div class="folder-caption">THƯ MỤC SFX<small>Bao gồm thư mục con</small></div><nav id="folderTree" aria-label="Thư mục SFX"></nav></aside><section id="results" class="results"></section></div>
+  </main>
+
+  <aside id="libraryPanel" class="panel hidden">
+    <div class="panel-head">
+      <h2>Cài đặt</h2><span>Thư mục tài nguyên</span>
+      <button id="closePanel" class="ghost">Đóng</button>
+    </div>
+    <p>Dùng chung folder cho âm thanh, hình ảnh và video. Plugin quét cả thư mục con; dữ liệu lưu trên máy.</p>
+    <div id="libraries"></div>
+    <div class="panel-actions">
+      <button id="addLibrary">+ Thêm thư mục</button>
+      <button id="rescan" class="secondary">Quét lại</button>
+      <button id="retryResolve" class="secondary">Kết nối lại Resolve</button>
+    </div>
+    <section class="backup-section">
+      <h3>Sao lưu &amp; chuyển thư viện</h3>
+      <label><input id="exportWaves" type="checkbox" /> Kèm waveform cache</label>
+      <label><input id="exportHistory" type="checkbox" /> Kèm Recent / lượt sử dụng</label>
+      <div class="panel-actions"><button id="exportBackup" class="secondary">Xuất bản sao lưu</button><button id="openBackup" class="secondary">Nhập bản sao lưu</button><button id="openPending" class="secondary">Nối lại mục còn thiếu</button></div>
+      <p class="hint">File .hnhbackup chứa dữ liệu, không chứa file tài nguyên gốc. Xuất lần đầu cần đọc file để tạo mã nhận diện nội dung.</p>
+      <p id="backupProgress" role="status"></p><button id="cancelBackup" class="secondary" hidden>Hủy tác vụ</button>
+      <div id="backupImport" hidden>
+        <p id="backupSummary"></p><div id="backupRoots"></div>
+        <p class="hint">Chọn lại thư mục gốc nếu khác máy cũ. Có thể để trống nếu file đã nằm trong các thư viện hiện tại.</p>
+        <button id="analyzeBackup">Đối chiếu file</button>
+        <p id="backupPlanSummary"></p><div id="backupWarnings"></div>
+        <p class="hint">Khớp nội dung sẽ được gộp tự động. Với các mục dưới đây, chọn file để xác nhận gán tags/Favorites hoặc giữ “Để nối lại sau”. Waveform chỉ khôi phục khi nội dung trùng khớp.</p>
+        <button id="chooseSuggested" class="secondary" title="Chỉ chọn ứng viên duy nhất khớp đường dẫn tương đối và kích thước; chưa xác minh nội dung">Chọn các mục khớp vị trí / kích thước</button><div id="backupReview"></div><div class="panel-actions"><button id="backupPrev" class="secondary">Trang trước</button><span id="backupPage"></span><button id="backupNext" class="secondary">Trang sau</button></div>
+        <div class="restore-options"><label><input id="restoreWaves" type="checkbox" checked /> Khôi phục waveform hợp lệ</label><label><input id="restoreCollections" type="checkbox" checked /> Gộp Smart Collections</label><label><input id="restoreUI" type="checkbox" /> Nhập tùy chọn giao diện / âm lượng</label><label><input id="restoreHistory" type="checkbox" /> Gộp Recent / lượt sử dụng</label></div>
+        <button id="applyBackup" disabled>Áp dụng — gộp tags và Favorites</button>
+      </div>
+      <details><summary>Khôi phục trạng thái trước lần nhập gần nhất</summary><p class="hint">Hoàn tác settings, index và các mục chờ nối lại về thời điểm trước lần nhập. Những chỉnh sửa metadata sau lần nhập cũng sẽ được hoàn tác. Không thay đổi file tài nguyên gốc.</p><button id="undoBackup" class="secondary">Hoàn tác lần nhập</button><button id="confirmUndo" hidden>Xác nhận hoàn tác</button></details>
+    </section>
+    <section class="backup-section" id="cachePanel"><h3>Cache &amp; chẩn đoán</h3><p class="hint">Xóa cache để giải phóng dung lượng. Tags, yêu thích, index và file gốc được giữ. Cache sẽ tạo lại khi preview.</p><p id="cacheSummary">Bấm Kiểm tra dung lượng để xem.</p><div class="panel-actions"><button id="cacheRefresh" class="secondary">Kiểm tra dung lượng</button><button id="cacheWave" class="secondary">Xóa waveform cache</button><button id="cacheThumb" class="secondary">Xóa thumbnail cache</button><button id="diagnosticExport" class="secondary">Xuất thông tin chẩn đoán</button></div><div id="cacheConfirm" hidden><p id="cacheConfirmText"></p><button id="cacheApply">Xác nhận xóa</button><button id="cacheCancel" class="secondary">Hủy</button></div><p id="cacheStatus" role="status"></p><p class="hint">Chẩn đoán gồm phiên bản plugin/runtime, trạng thái kết nối và số lượng tài nguyên/cache. Không chứa tên file, đường dẫn thư viện, nội dung tag hoặc tài nguyên. Chọn tên file xuất mới; không ghi đè file đã có.</p></section><div id="storageDetail" class="bridge-detail"></div>
+    <div id="scanDetail" class="bridge-detail"></div>
+    <div id="bridgeDetail" class="bridge-detail"></div>
+    <div class="shortcuts">
+      <strong>Phím tắt</strong>
+      <span>↑ / ↓: chọn SFX</span><span>Space: nghe / dừng</span>
+      <span>Enter: chèn tại playhead</span><span>Ctrl+Enter: import Media Pool</span>
+      <span>Ctrl+F: tìm kiếm</span><span>Esc: xóa tìm kiếm / đóng bảng</span>
+    </div>
+    <div class="hint">Hỗ trợ WAV, MP3, FLAC, AIFF, M4A, AAC, OGG. File macOS <code>._*</code> được tự động bỏ qua.</div>
+  </aside>
+
+  <footer>
+    <audio id="audio" preload="metadata"></audio>
+    <div class="preview-block">
+      <div class="now-playing">
+        <span id="nowName">Chưa chọn SFX</span>
+        <span id="nowMeta"></span>
+      </div>
+      <div class="wave-wrap" id="waveWrap" title="Bấm để tua; kéo để chọn đoạn In/Out">
+        <canvas id="waveform"></canvas>
+        <span id="waveHint">Chọn SFX để xem waveform</span>
+      </div>
+      <div class="trim-controls">
+        <button id="markIn" class="secondary" title="Đặt In tại vị trí nghe (I)">In [I]</button><input id="inTime" type="number" min="0" step="0.001" aria-label="In (giây)" />
+        <button id="markOut" class="secondary" title="Đặt Out tại vị trí nghe (O)">Out [O]</button><input id="outTime" type="number" min="0" step="0.001" aria-label="Out (giây)" />
+        <button id="resetTrim" class="secondary">Toàn bộ</button><label><input id="loopSelection" type="checkbox" /> Lặp đoạn</label><span id="rangeLabel"></span>
+      </div>
+    </div>
+    <div class="footer-tools"><div id="timelineRangeControls"><label>Chèn theo <select id="insertMode"><option value="playhead">Playhead</option><option value="timeline">Trong vùng I/O Timeline</option></select></label><div id="timelineRangeBox" hidden><p id="timelineRangeStatus" role="status"></p><button id="timelineRangeRefresh" class="secondary">Đọc lại I/O</button><small>SFX ngắn được giữ nguyên; SFX dài chỉ cắt tại Out. In/Out trên waveform giới hạn đoạn nguồn.</small></div></div>
+      <div class="volume-controls"><label for="previewVolume">Âm lượng nghe thử</label><input id="previewVolume" type="range" min="0" max="100" value="100" /><span id="volumeLabel">100%</span><label><input id="previewMute" type="checkbox" /> Tắt tiếng</label></div>
+      <div class="track-row">
+        <label for="trackSelect">Track</label>
+        <select id="trackSelect" title="Audio track đích"><option value="1">A1</option></select>
+      </div>
+      <div class="footer-actions compact">
+        <button id="similarBtn" class="secondary" disabled>Tương tự</button>
+        <button id="revealBtn" class="secondary" disabled>Mở thư mục</button>
+      </div>
+      <div class="footer-actions">
+        <button id="playBtn" class="secondary">▶ Preview</button>
+        <button id="exportAudioBtn" class="secondary" title="Xuất In/Out của SFX thành WAV 24-bit / 48 kHz">Export WAV</button><button id="importBtn" class="secondary">Import</button>
+        <button id="insertBtn">+ Insert tại Playhead</button>
+      </div>
+    </div>
+  </footer>
+
+
+  <dialog id="libraryTypesDialog" aria-labelledby="libraryTypesTitle">
+    <h2 id="libraryTypesTitle">Chọn loại tài nguyên cần quét</h2><p id="libraryTypesPath"></p>
+    <fieldset><legend>Có thể chọn nhiều loại</legend><label><input type="checkbox" value="audio"/> Âm thanh</label><label><input type="checkbox" value="image"/> Hình ảnh</label><label><input type="checkbox" value="video"/> Video</label></fieldset>
+    <p class="hint">Bỏ chọn chỉ loại file khỏi index, không xóa file gốc, tags hay Favorites. Nếu file cũng thuộc thư mục khác còn bật loại đó, file vẫn được hiển thị.</p>
+    <p id="libraryTypesStatus" role="status"></p><div class="panel-actions"><button id="libraryTypesCancel" class="secondary">Hủy</button><button id="libraryTypesApply">Chọn thư mục…</button></div>
+  </dialog>
+  <dialog id="updatesPanel" aria-labelledby="updatesPanelTitle"><div class="help-head"><h2 id="updatesPanelTitle">Cập nhật HNH SFX Finder</h2><button id="closeUpdatesPanel" autofocus>Đóng</button></div><div class="help-content"><section class="update-settings" id="updateSection"><h3>Cập nhật plugin</h3><label><input id="updateAuto" type="checkbox" checked/> Tự kiểm tra bản mới khi mở plugin (tối đa mỗi ngày một lần)</label><button id="showInstalledHistory" class="secondary">Lịch sử cập nhật</button><p id="installedSummary" class="hint"></p><p id="updateStatus" role="status"></p><button id="updateCheck">Kiểm tra ngay</button> <button id="updateOpen" class="secondary">Mở trang phát hành</button><p class="hint">Nguồn: GitHub dmina97-cpu/hnh-sfx-finder-releases. Chỉ thông báo bản chính thức có ZIP. Tải gói cài, đóng Resolve rồi chạy installer bằng Administrator; plugin không tự cài. Mất mạng không ảnh hưởng thư viện.</p><div id="updateRelease" hidden><h4 id="updateReleaseTitle"></h4><pre id="updateReleaseNotes"></pre></div></section><h3>Lịch sử khi nâng cấp</h3><p>Kiểm tra cập nhật tổng hợp các bản đã bỏ qua. Sau khi cài, cửa sổ Có gì mới hiện những thay đổi từ phiên bản trước; bấm Đã xem để không nhắc lại. Nút Xem lịch sử trong phần cập nhật mở lại lịch sử offline. Khi cài từ bản cũ, installer ghi nhận phiên bản trước; nếu không biết sẽ báo rõ và hiển thị toàn bộ lịch sử đi kèm.</p></div></dialog>
+  <dialog id="helpDialog" aria-labelledby="helpTitle">
+    <div class="help-head"><div><h2 id="helpTitle">HNH SFX Finder</h2><p>v0.12.1 • Windows • DaVinci Resolve Studio</p></div><button id="closeHelp" autofocus aria-label="Đóng hướng dẫn">Đóng</button></div>
+    <div class="help-content">
+<section class="help-author"><h3>Nhà phát triển: Phạm Nam</h3><p>Facebook: <strong>facebook.com/phamnam22s</strong></p><p>Anh em cần hỏi cách dùng, báo lỗi hoặc muốn góp ý thêm tính năng thì nhắn Facebook cho mình nhé.</p><button id="contactDeveloper">Nhắn Facebook cho Phạm Nam</button><p id="contactStatus" role="status"></p></section>
+<section class="help-card"><h3>Thiết lập ban đầu</h3><ol><li>Mở <b>Cài đặt</b>, thêm thư mục chứa tài nguyên của bạn.</li><li>Chọn loại tài nguyên cần quét: âm thanh, hình ảnh hoặc video. Có thể thêm nhiều thư mục.</li><li>Chờ lần quét đầu hoàn tất, chuyển sang tab tương ứng để tìm và chọn file. Những lần mở sau sẽ dùng danh sách đã lưu và đối soát ở nền.</li><li>Mở project và timeline trong Resolve, chọn track đích rồi chèn tài nguyên tại playhead.</li></ol></section>
+<details><summary>Chọn loại tài nguyên cho từng thư mục</summary><p>Khi thêm folder, tích Âm thanh, Hình ảnh hoặc Video (có thể chọn nhiều loại). Mặc định theo tab đang mở. Trong Cài đặt, bấm Loại quét cạnh folder để sửa và quét lại. Folder cũ chưa có lựa chọn vẫn quét cả ba loại như trước.</p><p>Bỏ một loại chỉ bỏ khỏi index. Tags/Favorites vẫn giữ và xuất hiện lại khi bật loại đó rồi quét. Nếu các thư viện lồng nhau, một file vẫn hiện khi được ít nhất một folder cho phép quét. Giới hạn loại giúp giảm đọc thông tin và kích thước index, nhưng vẫn cần duyệt cây folder.</p></details>
+<p>Plugin giúp tìm, nghe thử và chèn sound effect từ thư viện trên máy vào timeline Resolve. Tìm nhanh bằng tiếng Việt hoặc tiếng Anh, quản lý tags và Favorites ngay trong một cửa sổ.</p>
+<details open><summary>Tìm kiếm, bộ lọc và duyệt folder</summary><p>Tìm theo tên file/thư mục, hỗ trợ từ khóa Việt–Anh và tìm gần đúng. Các nút Whoosh, Impact, UI, Riser… giúp tìm nhanh theo nhóm.</p><p>Kết hợp bộ lọc định dạng, thư viện, tags và thời lượng Từ–Đến (giây). File chưa xác định thời lượng có thể chưa xuất hiện khi đang lọc thời lượng.</p><p>Bật <strong>Duyệt thư mục</strong> để xem cây folder. Bấm tên folder để lọc cả thư mục con; bấm mũi tên để mở nhánh. <strong>Tất cả SFX</strong> bỏ lọc folder, các bộ lọc khác vẫn giữ. Ẩn bảng folder không tự bỏ lọc.</p><p>Nút <strong>Tương tự</strong> tìm các sound gần loại theo từ khóa của file đang chọn; đây không phải so sánh nội dung âm thanh. <strong>Mở thư mục</strong> hoặc chuột phải kết quả để tìm file trong Explorer.</p></details>
+<details><summary>Ngày thêm, lọc nhanh và danh sách tags</summary><p>Ngày thêm là lần đầu plugin ghi nhận đường dẫn file, không phải ngày tạo hoặc ngày sửa file trên ổ đĩa. File mới được ghi nhận từ bản 0.7.2; file cũ không có dữ liệu ngày sẽ hiện Chưa rõ ngày thêm. Quét lại, sửa nội dung hoặc tắt/bật loại quét không làm đổi ngày đã ghi nhận.</p><p>Chọn Hôm nay, 7 ngày qua (hôm nay và 6 ngày trước), Khoảng ngày hoặc Chưa rõ ngày thêm. Các mốc dùng ngày trên máy; khoảng ngày bao gồm cả ngày kết thúc. Rê chuột vào tên/thẻ file để xem thời điểm cụ thể. Bản sao lưu mới giữ ngày khi chuyển sang thư viện mới.</p><p>Danh sách tags hiển thị nhãn đã gắn và số file của loại tài nguyên đang mở, không phụ thuộc bộ lọc ngày/search. Chọn tag để lọc. Nếu chưa có tag, chọn file → nhập các tag cách nhau bằng dấu phẩy → Lưu tags. Bỏ lọc ngày / tag không xóa tags đã lưu.</p></details>
+<details><summary>Smart Collections — lưu bộ lọc thường dùng</summary><p>Đặt từ khóa, folder và các bộ lọc cần dùng → nhập <strong>Tên bộ lọc để lưu</strong> → bấm <strong>Lưu bộ lọc</strong>. Chọn lại trong <strong>Smart Collections</strong> để áp dụng.</p><p>Khi đang chọn một bộ lọc đã lưu, bấm Lưu bộ lọc sẽ cập nhật bộ đó. Muốn tạo bộ mới, chọn dòng Smart Collections trống trước. <strong>Xóa bộ lọc</strong> chỉ xóa bộ lọc đã lưu, không xóa SFX.</p></details>
+<details><summary>Preview, waveform, In/Out và âm lượng</summary><p>Bấm Preview hoặc nút ▶ ở kết quả để nghe/dừng. <strong>Auto preview luôn bật</strong>: chọn SFX hoặc chuyển lựa chọn để nghe ngay. Waveform cho phép bấm để tua.</p><p>Tua tới điểm bắt đầu rồi bấm <strong>In [I]</strong>, tua tới điểm kết thúc rồi bấm <strong>Out [O]</strong>; cũng có thể nhập thời gian bằng giây. Điểm Out phải lớn hơn In và nằm trong thời lượng file.</p><p>Bật <strong>Lặp đoạn</strong> để nghe lặp vùng chọn. Khi có vùng In/Out, nút chèn đổi thành <strong>Insert đoạn chọn</strong>. Bấm <strong>Toàn bộ</strong> để bỏ vùng chọn. Import vẫn đưa file gốc vào Media Pool.</p><p><strong>Âm lượng nghe thử</strong> và <strong>Tắt tiếng</strong> chỉ điều khiển preview trong plugin, không thay đổi file nguồn hoặc âm lượng clip trên timeline.</p></details>
+<details><summary>Chèn SFX trong vùng In/Out Timeline</summary><p>Đánh I và O trên timeline Resolve. Trong tab Âm thanh, chọn file và track A đích, đổi Chèn theo thành Trong vùng I/O Timeline. Plugin đọc vùng khi quay lại cửa sổ; nút Đọc lại I/O cập nhật thủ công. Khi bấm chèn, vùng được đọc lại từ Resolve, không phụ thuộc playhead.</p><p>I/O timeline là giới hạn tối đa: SFX ngắn hơn được chèn nguyên độ dài từ điểm In; SFX dài hơn được cắt tại Out. Plugin không lặp, kéo giãn hoặc thêm khoảng lặng. Nếu đã chọn In/Out trên waveform, plugin dùng đoạn nguồn đó rồi tiếp tục giới hạn theo Out timeline.</p><p>Khi đọc được vùng I/O, danh sách Liên quan nhất ưu tiên SFX có thời lượng nằm gọn trong vùng; file gần sát độ dài vùng đứng trước. SFX dài hơn vẫn hiện và vẫn chèn được bằng cách cắt tại Out. Track thông minh chỉ kiểm tra phần SFX thực sự sẽ chiếm và chừa 2 frame ở cuối.</p><p>Ưu tiên dấu audio; nếu không có dấu audio thì dùng dấu video. Nếu thiếu một mốc, cần đánh đủ I/O. Plugin khôi phục dấu sau chèn; nếu bạn đổi dấu trong lúc chèn sẽ giữ dấu mới. Sai số làm tròn tối đa 2 frame được báo, sai lệch lớn hơn sẽ thử gỡ clip mới. Bản Resolve thiếu API sẽ báo rõ; vẫn dùng Playhead như trước.</p></details>
+<section><h3>Xuất đoạn SFX thành WAV</h3><p>Chọn SFX, đánh In/Out rồi bấm Export WAV và chọn tên file mới. Không chọn đoạn thì xuất toàn bộ. WAV 24-bit / 48 kHz, mono hoặc stereo theo nguồn; không áp dụng âm lượng nghe thử. Không ghi đè file có sẵn và không sửa nguồn. Nguồn tối đa 64 MiB, 20 phút; file xuất tối đa 96 MiB. Định dạng phải được plugin giải mã được; không cần FFmpeg.</p><h3>Bộ lọc tìm kiếm</h3><p>Các bộ lọc luôn hiện dưới ô tìm kiếm và kết hợp với nhau. Tùy chọn chứa Auto preview, hiển thị tag, tên bộ lọc để lưu và nút lưu/xóa. Lọc khoảng ngày sẽ mở hai ô ngày ngay dưới hàng lọc.</p></section>
+<details open><summary>Mới: tab Hình ảnh và Video</summary><p>Ba tab Âm thanh, Hình ảnh và Video dùng chung thư viện, tags và Favorites. Thêm folder trong Thư viện; mỗi tab chỉ hiện đúng loại tài nguyên. Tags/Favorites của ảnh và video cũng được xuất/nhập cùng bản sao lưu.</p><p>Trong tab Hình ảnh hoặc Video, tìm theo tên/folder/tags, chọn folder từ danh sách hoặc lọc Yêu thích/Gần đây. Kết quả chia trang để thư viện lớn vẫn nhẹ. Chọn một thẻ để xem preview; thumbnail được tạo khi thẻ xuất hiện trên màn hình và lưu cache cục bộ.</p><p><strong>Ảnh:</strong> chọn thời lượng bằng giây, chọn track V1/V2… rồi Chèn tại Playhead. Nếu Resolve nhận các ảnh đánh số thành image sequence, bật Show Individual Frames trong Media Storage và import lại ảnh riêng.</p><p><strong>Video:</strong> dùng player để xem/tua; nút In/Out lấy vị trí đang xem, hoặc nhập giây và bật Chèn đoạn In/Out. Toàn bộ bỏ vùng chọn. Mặc định chèn phần hình. Bật <strong>Kèm âm thanh &amp; liên kết clip</strong>, chọn audio track A1/A2… để lấy cả tiếng; cả hai dùng chung In/Out và vị trí playhead. Cần vùng trống trên cả hai track. Hỗ trợ một track âm thanh nguồn nhúng trong video; nguồn nhiều track hoặc audio liên kết ngoài cần xử lý trong Resolve. Nếu lỗi sau khi chèn, plugin thử gỡ các clip vừa tạo và báo kết quả; kiểm tra timeline nếu thông báo chưa gỡ được.</p><p>Nút Tải lại track đọc timeline đang mở. Track khóa không được chọn; cần có track video trên timeline. Ảnh/video lỗi preview do codec vẫn có thể thử Import hoặc chèn bằng Resolve. Khả năng nhập phụ thuộc định dạng được Resolve hỗ trợ; plugin không chuyển mã.</p></details>
+<section><h3>Ảnh/video: List, Details, Thumbnail</h3><p>Chọn kiểu Hiển thị phía trên danh sách. List gọn; Details hiện các cột tên, loại, thời lượng, ngày thêm, ngày sửa và cho bấm cột để sắp xếp; Thumbnail có thanh chỉnh cỡ ảnh. Với cửa sổ nhỏ, cuộn ngang danh sách Details để xem đủ cột. Thời lượng chưa có sẽ hiển thị — và được cập nhật sau preview. List/Details không tải thumbnail.</p><h3>Nhớ trạng thái từng tab</h3><p>Ảnh và video lưu riêng bộ lọc, kiểu xem, sắp xếp, trang, file chọn và vị trí cuộn. Âm thanh giữ bộ lọc, file chọn và vị trí cuộn. Mở lại plugin sẽ trở về tab cuối, không tự phát preview. Dữ liệu này lưu trên máy; chưa đi theo bản sao lưu portable. In/Out và vị trí phát video không được khôi phục.</p></section>
+<section><h3>Preview video và đoạn In/Out</h3><p>Trong phiên làm việc, chuyển tab giữ danh sách, vị trí cuộn, file đang chọn, vị trí preview và đoạn In/Out. Video dừng phát khi rời tab; quay lại bấm Phát để tiếp tục. Đóng plugin sẽ kết thúc phiên; vị trí preview và In/Out không được khôi phục ở lần mở sau.</p><p>Chọn video, dùng Phát/Dừng hoặc Phát đoạn In/Out. Bật Lặp đoạn để xem lại đoạn liên tục; Về In/Out dừng và tua đến mốc. Hiện rõ độ dài đoạn, báo khi mốc không hợp lệ.</p><p>Khi focus danh sách hoặc preview: Space phát/dừng, ←/→ tua 1 giây, Shift + ←/→ tua 5 giây, I/O đánh dấu. Phím không áp dụng trong ô nhập/chọn hoặc nút thông thường. Phát thường dùng đoạn nếu Chèn đoạn In/Out đang bật; tua bằng phím thoát chế độ phát đoạn đang chạy.</p><p>Âm lượng/tắt tiếng video được nhớ riêng trên máy, không ảnh hưởng âm thanh chèn vào timeline hoặc preview SFX. Chuyển file/tab dừng phát; mở lại không tự phát. Lặp/dừng preview không đảm bảo chính xác từng frame. Định dạng preview phụ thuộc codec; In/Out gửi Resolve giữ nguyên.</p></section>
+<details><summary>Tags, Favorites và Recent</summary><p>Chọn một SFX → nhập tag vào ô <strong>Tag cho SFX đang chọn</strong>, cách nhau bằng dấu phẩy → bấm <strong>Lưu tags</strong>. Ví dụ: <strong>chuyển cảnh, nhanh, yêu thích</strong>. Muốn sửa/xóa tag thì chỉnh danh sách rồi lưu lại.</p><p>Bật <strong>Hiện tag cạnh tên SFX</strong> để xem nhãn trong kết quả. Dùng ô <strong>Lọc tag</strong> để tìm theo tag.</p><p>Bấm ngôi sao cạnh file để thêm/bỏ Favorites, rồi chọn <strong>★ Yêu thích</strong> để xem. <strong>Gần đây</strong> giúp tìm lại các file đã dùng. Tags và Favorites lưu trong dữ liệu plugin, không ghi vào file âm thanh gốc.</p></details>
+<details><summary>Sidebar Tags và thêm tag nhanh</summary><p>Tab Âm thanh: chuyển sidebar sang Tags để tìm nhãn và xem số SFX. Bấm nhiều tags rồi chọn Có tất cả / Có ít nhất một. Số lượng là tổng trong thư viện SFX, không phụ thuộc bộ lọc khác. Bộ lọc thư mục/ngày/từ khóa vẫn kết hợp; bỏ tag bằng dấu × phía trên danh sách.</p><p>Chọn SFX → + Tag → gõ tag, chọn gợi ý hoặc tạo mới → Enter/Thêm. Tags cũ được giữ. Nhãn phía trên waveform có dấu × để gỡ khỏi file đang chọn. Sửa toàn bộ tags vẫn hỗ trợ nhập cách nhau bằng dấu phẩy. Tags và Favorites tiếp tục đi cùng bản sao lưu như trước.</p></details>
+<section><h3>Tags cho mọi tài nguyên</h3><p>Ảnh/video có sidebar Tags, tìm tên tag và đếm số file trong toàn bộ tab. Chọn nhiều tags theo Có tất cả hoặc Có ít nhất một. Chọn file rồi gõ tag, Enter để thêm; bấm × cạnh tag để gỡ. Gợi ý dùng chung giữa âm thanh, ảnh và video.</p><h3>Đổi tên / Gộp tags</h3><p>Mở Quản lý tags trong sidebar, chọn tag nguồn và nhập tên đích. Kiểm tra số file rồi bấm Đổi tên / Gộp tag. Nếu tên đích tồn tại sẽ gộp, không tạo tag trùng. Áp dụng cho metadata đang dùng của cả ba loại tài nguyên và Smart Collections; không đổi file nguồn, backup hoặc pending restore cũ. Plugin tạo bản sao settings trước thao tác và hiện đường dẫn sau khi xong.</p></section>
+<details><summary>Chọn nhiều file: tags và Favorites</summary><p>Bấm Chọn nhiều rồi tích checkbox cạnh các file. Chọn các file đang hiện áp dụng cho trang hiện tại (SFX tối đa 500 kết quả). Có thể chọn tiếp ở trang khác; đổi tab sẽ bỏ chọn, đổi bộ lọc sẽ bỏ các lựa chọn không còn khớp.</p><p>Nhập tags cách nhau bằng dấu phẩy rồi Thêm tag hoặc Xóa tag. Thêm tag giữ các tags cũ; Xóa tag chỉ xóa nhãn đã nhập, không xóa file. Thêm/Bỏ yêu thích áp dụng cho các file đã chọn. Tối đa 30 tags mỗi file. Dữ liệu được giữ trong bản sao lưu như chỉnh từng file.</p></details>
+<details><summary>Sao lưu và chuyển sang máy khác</summary><ol><li>Máy cũ: vào <strong>Cài đặt → Sao lưu &amp; chuyển thư viện → Xuất bản sao lưu</strong>. Có thể chọn kèm waveform cache và Recent/lượt sử dụng.</li><li>Chép file <strong>.hnhbackup</strong> sang máy mới. Gói chứa index, tags, Favorites, Smart Collections và tùy chọn plugin; <strong>không chứa audio</strong>, nên cần chép thư viện âm thanh riêng.</li><li>Máy mới: chọn <strong>Nhập bản sao lưu</strong>. Giữ đường dẫn nếu giống máy cũ, hoặc <strong>Chọn thư mục mới</strong> cho từng thư viện.</li><li>Bấm <strong>Đối chiếu file</strong>, xem kết quả và chọn file cho những mục cần xác nhận. File có nội dung giống hệt có thể tự ghép kể cả đổi tên. Chỉ trùng tên hoặc có nhiều bản giống nhau thì cần xác nhận.</li><li>Chọn các tùy chọn muốn nhập rồi bấm <strong>Áp dụng — gộp tags và Favorites</strong>. Dữ liệu hiện có được gộp.</li></ol><p>File chưa tìm thấy được giữ để <strong>Nối lại mục còn thiếu</strong> sau khi bổ sung thư viện. Có thể <strong>Hoàn tác lần nhập</strong> về trạng thái trước nhập; các chỉnh sửa metadata sau lần nhập cũng sẽ được hoàn tác.</p><p>Lần xuất đầu và đối chiếu có thể lâu vì phải đọc nội dung file. File đã chuyển định dạng hoặc chỉnh sửa có thể cần xác nhận. Waveform chỉ khôi phục khi nội dung khớp; audio track và kết nối Resolve trên máy mới được giữ riêng.</p></details>
+<section><h3>Nối lại thư viện khi đổi ổ hoặc thư mục</h3><p>Cài đặt → Nối lại cạnh đường dẫn cũ → Chọn thư mục mới → Đối chiếu file → kiểm tra kết quả → Áp dụng. Dùng index và metadata hiện tại, không yêu cầu có file backup trước đó. Nếu có mã nội dung đã lưu, file khớp được tự nhận. Nếu chỉ khớp tên/vị trí/kích thước, cần bạn xác nhận. Nút chọn các mục khớp vị trí/kích thước chỉ điền lựa chọn; chưa áp dụng thay đổi.</p><p>Tags và yêu thích được gộp; waveform chỉ chuyển khi nội dung trùng khớp. Thư viện cũ được giữ để đối chiếu, có thể bỏ khỏi danh sách sau khi kiểm tra xong. Mục chưa tìm thấy nằm ở Nối lại mục còn thiếu. Hoàn tác lần nhập khôi phục trạng thái trước áp dụng, gồm cả metadata chỉnh sửa sau đó. Không di chuyển hoặc sửa file nguồn.</p></section>
+<details><summary>Quét thư viện, cache và kết nối Resolve</summary><p>Plugin hiển thị index đã lưu trước, sau đó quét cập nhật trong nền. Lần đầu thêm thư viện cần chờ lập index. Waveform đã có được cache để dùng lại.</p><p>Hỗ trợ WAV, MP3, FLAC, AIFF/AIF, M4A/AAC và OGG; khả năng nghe thử còn phụ thuộc bộ giải mã. Tự bỏ các file phụ macOS bắt đầu bằng <strong>._</strong>.</p><p>Nếu chưa thấy file mới, vào Thư viện và bấm <strong>Quét lại</strong>. Nếu ổ ngoài chưa kết nối, gắn lại ổ và kiểm tra đường dẫn. Xóa thư viện khỏi danh sách không xóa file trên ổ đĩa.</p><p>Kết nối Resolve tự thử khi mở. Nếu chưa kết nối, bảo đảm Resolve đã mở project/timeline, rồi bấm <strong>Kết nối lại Resolve</strong>. Bản đóng gói dành cho Resolve Studio 20.2 trên Windows, dùng bridge v2.0.0; phiên bản Resolve khác chưa được xác nhận tương thích.</p></details>
+<section><h3>Thư viện lớn và preview</h3><p>Trên 10.000 tài nguyên, tìm kiếm chờ 120 ms sau khi gõ để giảm xử lý thừa. Preview ảnh/video chờ 70 ms khi chọn để ưu tiên file cuối cùng. Thumbnail được giới hạn số tác vụ và cache trong bộ nhớ; List/Details không tải thumbnail. Waveform giải mã từng file và bỏ các lựa chọn chờ đã cũ. Không đổi tags, yêu thích hoặc âm thanh khi chèn.</p></section>
+<section><h3>Cache &amp; chẩn đoán</h3><p>Trong Cài đặt, bấm Kiểm tra dung lượng để xem số file và dung lượng cache trên ổ đĩa. Xóa riêng waveform/thumbnail có bước xác nhận; tags, yêu thích, index, backup và file gốc giữ nguyên. Cache được tạo lại khi preview nên có thể xuất hiện lại sau khi xóa.</p><p>Xuất thông tin chẩn đoán tạo file JSON mới chứa phiên bản/runtime, trạng thái kết nối và số liệu tổng hợp. Không có tên file, đường dẫn thư viện, nội dung tag hoặc nhật ký lỗi chi tiết. Chọn tên file chưa tồn tại; gửi cho nhà phát triển khi cần hỗ trợ. Plugin không tự gửi báo cáo.</p></section>
+<details><summary>Kéo thả SFX và chọn track thông minh</summary><p>Kéo tay nắm ⠿ cạnh tên SFX vào Resolve để kéo file gốc đầy đủ. Nếu chưa sẵn sàng, thả chuột và kéo lại. Vị trí thả do Resolve xử lý; không áp dụng In/Out hoặc tùy chọn track của plugin.</p><p>Nút Track tự động cạnh audio track: thử track đã chọn, rồi tìm A1 xuống dưới. Kiểm tra toàn bộ đoạn, chừa 2 frame cuối; bỏ qua track khóa/tắt. Tạo track khi cần có thể đặt trên cùng (A1, đẩy track cũ xuống) hoặc dưới cùng. Tắt tự tìm để dùng chèn thủ công như trước. Áp dụng cho nút Chèn tại playhead và In/Out Timeline; tùy chọn được lưu lại.</p></details><details><summary>Auto Bin — sắp xếp Media Pool</summary><p>Chọn Master hoặc Bin hiện tại. Chỉ xử lý media trực tiếp; nội dung Bin con được giữ nguyên. Bật/tắt nhóm, đặt tên Bin hoặc chọn Bin con có sẵn. Bấm Quét / Làm mới xem trước rồi kiểm tra tên đích trước khi Sắp xếp. Đổi cấu hình phải quét lại.</p><p>Timeline và Compound mặc định tắt. Timeline nhận theo ID project; Compound chỉ khi Resolve trả loại Compound Clip. Clip đặc biệt chưa nhận diện chắc chắn sẽ giữ nguyên.</p><p>Sau Ctrl+Z bên Resolve, Quét lại để đối chiếu vị trí clip. Clip đã về nguồn được ghi nhận dù Bin đích đã mất. Nếu còn mục chưa rõ, xem Đối chiếu lần Auto Bin trước. Có thể Hoàn tác, hoặc Kết thúc lần cũ → Xác nhận giữ hiện trạng để lưu nhật ký và bỏ khả năng hoàn tác lần đó trong plugin. Kết thúc không di chuyển/xóa media hoặc Bin. Sau đó quét lại.</p><p>Nhật ký ở máy hiện tại, phải mở đúng project. Không tự xóa Bin trống. Lần sắp xếp mới thay thế khả năng hoàn tác lần trước.</p></details><details><summary>Phím tắt</summary><ul><li><strong>↑ / ↓:</strong> chọn SFX.</li><li><strong>Space:</strong> nghe/dừng preview.</li><li><strong>Enter:</strong> chèn vào playhead; <strong>Ctrl+Enter:</strong> import Media Pool.</li><li><strong>I / O:</strong> đánh dấu In/Out khi không nhập văn bản.</li><li><strong>Ctrl+F:</strong> về ô tìm kiếm.</li><li><strong>Esc:</strong> đóng bảng đang mở hoặc xóa tìm kiếm.</li></ul><p>Phím tắt thao tác SFX được tạm ngưng khi đang đọc bảng hướng dẫn này.</p></details>
+    </div>
+  </dialog>
+
+  <dialog id="installedDialog" aria-labelledby="installedTitle"><h2 id="installedTitle" tabindex="-1">Có gì mới</h2><p id="installedHint"></p><pre id="installedNotes"></pre><button id="installedAcknowledge">Đã xem</button><button id="installedClose" class="secondary">Đóng</button></dialog><dialog id="updateDialog" aria-labelledby="updateVersion"><h2 id="updateVersion">Có bản cập nhật</h2><pre id="updateNotes"></pre><p>Tải ZIP đính kèm trên trang phát hành, đóng Resolve rồi chạy installer. Không chọn Source code.</p><div class="panel-actions"><button id="updateDownload">Tải bản mới</button><button id="updateLater" class="secondary">Để sau</button><button id="updateIgnore" class="secondary">Bỏ qua bản này</button></div></dialog>
+  <script src="../media-types.js"></script>
+  <script src="../date-filters.js"></script>
+  <script src="quick-filters.js"></script>
+  <script src="duration-label.js"></script>
+  <script src="search.js"></script>
+  <script src="trim-preview.js"></script>
+  <script src="folders.js"></script>
+  <script src="audio-tools.js"></script><script src="app.js"></script>
+  <script src="backup-ui.js"></script>
+  <script src="help.js"></script>
+  <script src="batch-selection.js"></script>
+  <script src="media-browser.js"></script>
+  <script src="library-types-ui.js"></script>
+  <script src="updates.js"></script>
+  <script src="timeline-range.js"></script>
+<script src="compact-layout.js"></script>
+<script src="sidebar-tags.js"></script><script src="wav-export.js"></script><script src="export-ui.js"></script><script src="browser-state.js"></script><script src="unified-tags.js"></script><script src="video-preview.js"></script><script src="maintenance-ui.js"></script><script src="auto-bin.js"></script>
+</body>
+</html>
