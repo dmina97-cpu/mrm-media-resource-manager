@@ -56,6 +56,26 @@ const check = (name, ok, detail) => results.push({ name, ok: !!ok, detail });
     check('migration retries after rescan', retry && retry.retry === true && favAfter === 1, { retry, favAfter });
     check('no retry without new scan', (await store.migrateLegacy()) === null);
 
+    // ---- thư mục yêu thích
+    const favFolder = { root: wav.root, path: wav.relativePath.split(/[\\/]/).slice(0, -1).join('/'), name: 'SFX ghim' };
+    // MRM cũ (chưa có bảng favorite_folders) -> lưu riêng trong plugin
+    store._favFoldersTable = undefined;
+    store.db.exec('DROP TABLE IF EXISTS favorite_folders');
+    let sf = await store.saveSettings({ ...(await store.loadSettings()), favoriteFolders: [favFolder] });
+    const privateSaved = JSON.parse(fs.readFileSync(path.join(privateDir, 'settings.json'), 'utf8'));
+    check('fav folders private when MRM is old', (privateSaved.favoriteFolders || []).length === 1 && (await store.loadSettings()).favoriteFolders.length === 1, privateSaved.favoriteFolders);
+    // MRM >= 0.11.0 -> dùng chung bảng favorite_folders
+    store.db.exec(`CREATE TABLE favorite_folders (id INTEGER PRIMARY KEY, library_id INTEGER NOT NULL REFERENCES libraries(id) ON DELETE CASCADE,
+                   path TEXT NOT NULL, name TEXT NOT NULL, created_at INTEGER NOT NULL, UNIQUE (library_id, path))`);
+    store._favFoldersTable = undefined;
+    sf = await store.saveSettings({ ...(await store.loadSettings()), favoriteFolders: [favFolder] });
+    const rows = store.db.prepare('SELECT path, name FROM favorite_folders').all();
+    check('fav folder written to shared table', rows.length === 1 && rows[0].name === 'SFX ghim' && !rows[0].path.includes('/'), rows);
+    const back = (await store.loadSettings()).favoriteFolders;
+    check('fav folder read back with / separators', back.length === 1 && back[0].path === favFolder.path && back[0].root === favFolder.root, back);
+    await store.saveSettings({ ...(await store.loadSettings()), favoriteFolders: [] });
+    check('fav folder removed', store.db.prepare('SELECT count(*) AS n FROM favorite_folders').get().n === 0);
+
     // ---- plugin từng chạy độc lập (chưa có MRM) rồi người dùng cài MRM
     const standaloneDir = path.join(tmp, 'standalone');
     const newLib = path.join(tmp, 'SFX moi');

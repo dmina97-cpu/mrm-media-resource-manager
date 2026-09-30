@@ -3,7 +3,7 @@
   <Plugin>
     <Id>com.hnh.resolve.sfxfinder.mrm</Id>
     <Name>HNH SFX Finder (MRM)</Name>
-    <Version>0.12.1</Version>
+    <Version>0.12.2</Version>
     <Description>HNH SFX Finder: chạy độc lập, hoặc tự dùng chung thư viện, tag, favorite với MRM (Media Resource Manager) nếu máy có cài MRM.</Description>
     <FilePath>main.js</FilePath>
   </Plugin>

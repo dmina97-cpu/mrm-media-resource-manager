@@ -18,6 +18,8 @@ try { sqlite = require('node:sqlite'); } catch { sqlite = null; }
 const CONTRACT = 1;
 const APP = 'hnh-sfx-finder';
 const SHARED_KEYS = new Set(['libraries', 'favorites', 'recent', 'usage', 'tags', 'collections']);
+// Thư mục yêu thích: dùng chung khi MRM >= 0.11.0 (có bảng favorite_folders); MRM cũ hơn -> lưu riêng trong plugin
+const FAV_FOLDERS = 'favoriteFolders';
 const DEFAULT_UI = { autoPreview: true, sortMode: 'relevance', extension: 'all', library: 'all', trackIndex: 1 };
 
 const norm = s => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[đĐ]/g, 'd').toLowerCase().replace(/[_\-.()[\]{}]+/g, ' ').replace(/\s+/g, ' ').trim();
@@ -194,6 +196,15 @@ class MrmStore {
     return this._seq.get(key(p)) || null;
   }
 
+  /** MRM có bảng thư mục yêu thích không (MRM >= 0.11.0). */
+  _hasFavFolders() {
+    if (this._favFoldersTable === undefined) {
+      try { this._favFoldersTable = !!this.db.prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'favorite_folders'").get(); }
+      catch { this._favFoldersTable = false; }
+    }
+    return this._favFoldersTable;
+  }
+
   _sharedSettings() {
     const db = this.db;
     const full = (root, rel) => (/[\\/]$/.test(root) ? root + rel : root + '\\' + rel);
@@ -222,6 +233,11 @@ class MrmStore {
       return { id: c.id, name: c.name, filters };
     });
     const shared = { libraries, favorites, recent, usage, tags, collections };
+    if (this._hasFavFolders()) {
+      shared.favoriteFolders = db.prepare(
+        'SELECT l.path AS root, f.path, f.name FROM favorite_folders f JOIN libraries l ON l.id = f.library_id ORDER BY f.name COLLATE NOCASE'
+      ).all().map(r => ({ root: r.root, path: String(r.path).split('\\').join('/'), name: r.name }));
+    }
     this._lastShared = JSON.stringify(shared);
     return shared;
   }
@@ -246,10 +262,11 @@ class MrmStore {
   /** Lưu settings theo kiểu cũ: tự tính phần thay đổi và ghi vào DB chung; phần còn lại lưu riêng. */
   async saveSettings(next) {
     const own = {};
-    for (const [k, v] of Object.entries(next || {})) if (!SHARED_KEYS.has(k) && k !== 'mrm') own[k] = v;
+    const shared = k => SHARED_KEYS.has(k) || (k === FAV_FOLDERS && this.open().ok && this._hasFavFolders());
+    for (const [k, v] of Object.entries(next || {})) if (!shared(k) && k !== 'mrm') own[k] = v;
     await writeJson(path.join(this.privateDir, 'settings.json'), own);
     if (!this.open().ok) return next;
-    const pick = o => ({ libraries: o.libraries, favorites: o.favorites, recent: o.recent, usage: o.usage, tags: o.tags, collections: o.collections });
+    const pick = o => ({ libraries: o.libraries, favorites: o.favorites, recent: o.recent, usage: o.usage, tags: o.tags, collections: o.collections, ...(this._hasFavFolders() ? { favoriteFolders: o.favoriteFolders } : {}) });
     const incoming = pick(next);
     if (this._lastShared && JSON.stringify({ ...JSON.parse(this._lastShared), ...Object.fromEntries(Object.entries(incoming).filter(([, v]) => v !== undefined)) }) === this._lastShared) {
       // chỉ UI/thiết lập riêng thay đổi -> không đụng DB chung
@@ -299,6 +316,18 @@ class MrmStore {
            ON CONFLICT(asset_id) DO UPDATE SET use_count = excluded.use_count`
         );
         for (const [p, n] of Object.entries(next.usage)) if ((before.usage[p] || 0) !== n && Number.isFinite(n)) { const id = idOf(p); if (id) setCount.run(id, Math.max(0, Math.floor(n))); }
+      }
+      // thư mục yêu thích (MRM >= 0.11.0)
+      if (this._hasFavFolders() && Array.isArray(next.favoriteFolders)) {
+        const k = f => (f.root + '|' + f.path).toLowerCase();
+        const oldSet = new Set((before.favoriteFolders || []).map(k)), newSet = new Set(next.favoriteFolders.map(k));
+        const lib = db.prepare('SELECT id FROM libraries WHERE lower(path) = lower(?)');
+        const ins = db.prepare(`INSERT INTO favorite_folders (library_id, path, name, created_at) VALUES (?, ?, ?, ?)
+                                ON CONFLICT(library_id, path) DO UPDATE SET name = excluded.name`);
+        const del = db.prepare('DELETE FROM favorite_folders WHERE library_id = ? AND path = ?');
+        const rel = p => String(p || '').split('/').join('\\');
+        for (const f of next.favoriteFolders) if (f && !oldSet.has(k(f))) { const l = lib.get(f.root); if (l) ins.run(l.id, rel(f.path), String(f.name || f.path || 'Thư mục'), Math.floor(now / 1000)); }
+        for (const f of before.favoriteFolders || []) if (!newSet.has(k(f))) { const l = lib.get(f.root); if (l) del.run(l.id, rel(f.path)); }
       }
       // smart collections
       if (Array.isArray(next.collections) && JSON.stringify(next.collections) !== JSON.stringify(before.collections)) {
@@ -445,7 +474,10 @@ class MrmStore {
     const ids = new Set(current.collections.map(c => c.id));
     const collections = [...current.collections, ...(legacy.collections || []).filter(c => c && c.id && !ids.has(c.id))];
     const own = await readJson(path.join(this.privateDir, 'settings.json'), null);
-    await this.saveSettings({ ...(own || {}), ui: { ...DEFAULT_UI, ...(legacy.ui || {}), ...(own?.ui || {}) }, favorites, tags, recent, usage, collections });
+    const favKey = f => (f.root + '|' + f.path).toLowerCase();
+    const favoriteFolders = [...(current.favoriteFolders || [])];
+    for (const f of legacy.favoriteFolders || []) if (f && f.root && !favoriteFolders.some(x => favKey(x) === favKey(f))) favoriteFolders.push(f);
+    await this.saveSettings({ ...(own || {}), ui: { ...DEFAULT_UI, ...(legacy.ui || {}), ...(own?.ui || {}) }, favorites, tags, recent, usage, collections, favoriteFolders });
     const summary = {
       at: new Date().toISOString(),
       favorites: (legacy.favorites || []).length,

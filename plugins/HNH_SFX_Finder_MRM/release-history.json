@@ -1,5 +1,9 @@
 [
   {
+    "version": "0.12.2",
+    "notes": "Thư mục yêu thích: bấm ☆ cạnh thư mục trong cây thư mục để ghim; thư mục đã ghim hiện ở mục ★ Yêu thích phía trên cây. Khi có MRM 0.11.0 trở lên, danh sách thư mục yêu thích dùng chung với Media Browser của MRM."
+  },
+  {
     "version": "0.12.1",
     "notes": "Kiểm tra cập nhật từ repo chung với MRM (github.com/dmina97-cpu/mrm-media-resource-manager). Phiên bản plugin được đọc từ tên gói zip, nên bản phát hành chỉ có MRM không làm plugin báo nhầm."
   },
