@@ -59,4 +59,4 @@ class Watcher {
   schedule() { clearTimeout(this.timer); this.timer=setTimeout(()=>Promise.resolve(this.onChange()).catch(()=>{}),700); }
   close() { this.handles.forEach(w=>w.close()); this.handles=[]; clearTimeout(this.timer); clearInterval(this.poll); }
 }
-module.exports={scan,Watcher,norm,fingerprint,kind};
+module.exports={scan,Watcher,norm,fingerprint,kind,historyKey:key};
