@@ -26,6 +26,8 @@ pub struct AssetQuery {
     pub ext: Option<String>,
     pub ai_category: Option<String>,
     pub collection_id: Option<i64>,
+    /// thư mục (đường dẫn trong library, dùng với library_id) — gồm cả thư mục con
+    pub folder: Option<String>,
     pub favorites: bool,
     pub recent: bool,
     /// tìm theo ý nghĩa (AI) ngoài khớp từ khóa
@@ -107,6 +109,12 @@ fn build_filter(q: &AssetQuery, sem: &[(i64, f32)]) -> (String, Vec<Value>) {
     if let Some(id) = q.tag_id {
         w.push("EXISTS (SELECT 1 FROM asset_tags x WHERE x.asset_id = a.id AND x.tag_id = ?)".into());
         p.push(Value::Integer(id));
+    }
+    if let Some(f) = q.folder.as_deref().map(|f| f.trim_matches(['\\', '/'])).filter(|f| !f.is_empty()) {
+        // dùng '!' làm ký tự escape vì đường dẫn Windows chứa '\'
+        let esc = f.replace('/', "\\").replace('!', "!!").replace('%', "!%").replace('_', "!_");
+        w.push("a.rel_path LIKE ? ESCAPE '!'".into());
+        p.push(Value::Text(format!("{esc}\\%")));
     }
     if let Some(id) = q.collection_id {
         w.push("EXISTS (SELECT 1 FROM collection_assets y WHERE y.asset_id = a.id AND y.collection_id = ?)".into());
@@ -620,6 +628,61 @@ pub fn set_cover_from_asset(state: State<AppState>, id: i64) -> Res<i64> {
     Ok(rid)
 }
 
+#[derive(Serialize)]
+pub struct FolderNode {
+    library_id: i64,
+    name: String,
+    /// đường dẫn trong library ("" = gốc library)
+    path: String,
+    count: i64,
+    has_children: bool,
+}
+
+/// Cây thư mục của Media Browser (tải dần): `library_id = None` -> danh sách library;
+/// ngược lại -> các thư mục con trực tiếp của `parent` có chứa file media (đếm cả thư mục con).
+#[tauri::command]
+pub fn asset_folders(state: State<AppState>, library_id: Option<i64>, parent: String, media_type: Option<String>) -> Res<Vec<FolderNode>> {
+    let conn = state.db.lock().unwrap();
+    let mt = media_type.filter(|t| matches!(t.as_str(), "audio" | "image" | "video")).unwrap_or_default();
+    let Some(lib) = library_id else {
+        let mut s = conn
+            .prepare(
+                "SELECT l.id, l.name, count(a.id) FROM libraries l JOIN media_assets a ON a.library_id = l.id AND a.available = 1
+                 AND (?1 = '' OR a.media_type = ?1) GROUP BY l.id ORDER BY l.name COLLATE NOCASE",
+            )
+            .map_err(e)?;
+        let v = s
+            .query_map([&mt], |r| Ok(FolderNode { library_id: r.get(0)?, name: r.get(1)?, path: String::new(), count: r.get(2)?, has_children: true }))
+            .map_err(e)?
+            .flatten()
+            .collect();
+        return Ok(v);
+    };
+    let parent = parent.replace('/', "\\").trim_matches('\\').to_string();
+    let prefix = if parent.is_empty() { String::new() } else { format!("{parent}\\") };
+    let like = format!("{}%", prefix.replace('!', "!!").replace('%', "!%").replace('_', "!_"));
+    let mut s = conn
+        .prepare("SELECT rel_path FROM media_assets WHERE library_id = ?1 AND available = 1 AND (?2 = '' OR media_type = ?2) AND rel_path LIKE ?3 ESCAPE '!'")
+        .map_err(e)?;
+    let mut map: std::collections::BTreeMap<String, (String, i64, bool)> = std::collections::BTreeMap::new();
+    for rel in s.query_map(params![lib, mt, like], |r| r.get::<_, String>(0)).map_err(e)?.flatten() {
+        let rest = &rel[prefix.len().min(rel.len())..];
+        if let Some((dir, more)) = rest.split_once('\\') {
+            let entry = map.entry(dir.to_lowercase()).or_insert_with(|| (dir.to_string(), 0, false));
+            entry.1 += 1;
+            if more.contains('\\') {
+                entry.2 = true;
+            }
+        }
+    }
+    let mut out: Vec<FolderNode> = map
+        .into_values()
+        .map(|(name, count, has_children)| FolderNode { library_id: lib, path: format!("{prefix}{name}"), name, count, has_children })
+        .collect();
+    out.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
+    Ok(out)
+}
+
 /// Ảnh nhỏ hiển thị dưới con trỏ khi kéo file ra app khác.
 #[tauri::command]
 pub fn drag_icon(state: State<AppState>) -> Res<String> {
@@ -691,6 +754,16 @@ mod tests {
         assert_eq!(rel.items.iter().map(|i| i.id).collect::<Vec<_>>(), vec![2, 3, 1], "khớp từ khóa trước, rồi theo AI");
         conn.execute("UPDATE media_assets SET ai_category = 'Whoosh' WHERE id = 1", []).unwrap();
         assert_eq!(q(AssetQuery { ai_category: Some("Whoosh".into()), ..Default::default() }).items[0].id, 1);
+
+        // lọc theo thư mục (gồm thư mục con), không nhầm "SFX2"
+        conn.execute(
+            "INSERT INTO media_assets (id, uid, library_id, media_type, rel_path, filename, ext, size, modified_ms, added_at, last_seen)
+             VALUES (9, 'u9', 1, 'audio', 'SFX2\\x.wav', 'x.wav', 'wav', 1, 0, 0, 0), (10, 'u10', 1, 'audio', 'SFX\\Deep\\y.wav', 'y.wav', 'wav', 1, 0, 0, 0)",
+            [],
+        )
+        .unwrap();
+        let f = q(AssetQuery { library_id: Some(1), folder: Some("SFX".into()), ..Default::default() });
+        assert_eq!(f.items.iter().map(|i| i.id).collect::<std::collections::BTreeSet<_>>(), [1, 2, 10].into_iter().collect());
 
         let d = detail(&conn, 2).unwrap();
         assert_eq!(d.path, "D:\\Lib\\SFX\\impact 100%.mp3");

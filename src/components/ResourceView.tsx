@@ -13,6 +13,7 @@ interface Props {
   focusId: number | null;
   onSelect: (id: number, e: React.MouseEvent) => void;
   onToggleFavorite: (r: ResourceSummary) => void;
+  onContextMenu?: (r: ResourceSummary, e: React.MouseEvent) => void;
 }
 
 const ROW_H = 38;
@@ -76,7 +77,7 @@ export function ResourceView(props: Props) {
 
 type BodyProps = Props & { vp: { width: number; height: number; scrollTop: number } };
 
-function ListBody({ items, tagMap, selected, onSelect, onToggleFavorite, vp }: BodyProps) {
+function ListBody({ items, tagMap, selected, onSelect, onToggleFavorite, onContextMenu, vp }: BodyProps) {
   const start = Math.max(0, Math.floor(vp.scrollTop / ROW_H) - 10);
   const end = Math.min(items.length, Math.ceil((vp.scrollTop + vp.height) / ROW_H) + 10);
   return (
@@ -100,6 +101,7 @@ function ListBody({ items, tagMap, selected, onSelect, onToggleFavorite, vp }: B
             className={`list-row ${selected.has(r.id) ? "selected" : ""}`}
             style={{ transform: `translateY(${(idx + 1) * ROW_H}px)` }}
             onClick={(e) => onSelect(r.id, e)}
+            onContextMenu={(e) => onContextMenu?.(r, e)}
           >
             <span className="c-fav">
               <button
@@ -132,7 +134,7 @@ function ListBody({ items, tagMap, selected, onSelect, onToggleFavorite, vp }: B
   );
 }
 
-function GridBody({ items, tagMap, selected, onSelect, onToggleFavorite, vp }: BodyProps) {
+function GridBody({ items, tagMap, selected, onSelect, onToggleFavorite, onContextMenu, vp }: BodyProps) {
   const cols = Math.max(1, Math.floor((vp.width - PAD * 2 + GAP) / (CARD_W + GAP)));
   const cardW = (vp.width - PAD * 2 - GAP * (cols - 1)) / cols;
   const rows = Math.ceil(items.length / cols);
@@ -155,6 +157,7 @@ function GridBody({ items, tagMap, selected, onSelect, onToggleFavorite, vp }: B
             className={`card ${selected.has(r.id) ? "selected" : ""}`}
             style={{ width: cardW, height: CARD_H, transform: `translate(${PAD + col * (cardW + GAP)}px, ${PAD + row * rowH}px)` }}
             onClick={(e) => onSelect(r.id, e)}
+            onContextMenu={(e) => onContextMenu?.(r, e)}
           >
             <CoverThumb resourceId={r.id} fallback={<KindIcon kinds={r.kinds} size={34} />} />
             <button

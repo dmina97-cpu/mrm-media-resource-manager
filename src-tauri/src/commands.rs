@@ -831,6 +831,31 @@ fn collect_suggestions(state: &AppState, conn: &Connection, id: i64, have: &[i64
     Ok(out)
 }
 
+/// Đường dẫn các nguồn còn truy cập được của một resource.
+fn resource_paths_of(conn: &Connection, id: i64) -> Res<Vec<String>> {
+    let v = collect(
+        conn,
+        "SELECT l.path, s.rel_path FROM resource_sources s JOIN libraries l ON l.id = s.library_id
+         WHERE s.resource_id = ?1 AND s.available = 1 ORDER BY s.kind = 'archive', s.id",
+        [id],
+        |r| Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?)),
+    )?;
+    Ok(v.into_iter().map(|(l, r)| join_path(&l, &r).replace('/', "\\")).collect())
+}
+
+/// Mở Explorer, chọn sẵn nguồn đầu tiên của resource (menu chuột phải).
+#[tauri::command]
+pub fn reveal_resource(state: State<AppState>, id: i64) -> Res<()> {
+    let paths = resource_paths_of(&state.db.lock().unwrap(), id)?;
+    let p = paths.into_iter().find(|p| Path::new(p).exists()).ok_or("Resource hiện không truy cập được (ổ đĩa rút ra hoặc đã bị di chuyển)")?;
+    tauri_plugin_opener::reveal_item_in_dir(&p).map_err(e)
+}
+
+#[tauri::command]
+pub fn resource_paths(state: State<AppState>, id: i64) -> Res<Vec<String>> {
+    resource_paths_of(&state.db.lock().unwrap(), id)
+}
+
 fn join_path(lib: &str, rel: &str) -> String {
     Path::new(lib).join(rel).to_string_lossy().to_string()
 }

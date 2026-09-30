@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { convertFileSrc } from "@tauri-apps/api/core";
 import { startDrag } from "@crabnebula/tauri-plugin-drag";
-import { api, AssetAiStatus, AssetDetail, AssetFacets, AssetItem, AssetQuery, AssetSort, Library, MediaType, Presence, VisionStatus } from "../api";
+import { api, AssetAiStatus, AssetDetail, AssetFacets, AssetItem, AssetQuery, AssetSort, FolderNode, Library, MediaType, Presence, VisionStatus } from "../api";
+import { ContextMenu, MenuItem, MenuState } from "./ContextMenu";
 import { errorText, formatDateTime, formatNumber, formatSize } from "../format";
 import { Icon } from "./Icon";
 import { CollectionPicker } from "./Collections";
@@ -234,6 +235,10 @@ function Browser({ view, resource, onClearResource, collection, onClearCollectio
   const [ext, setExt] = useState<string>("");
   const [tagId, setTagId] = useState<number | null>(null);
   const [aiCat, setAiCat] = useState<string>("");
+  /** thư mục đang xem (gồm thư mục con) */
+  const [folder, setFolder] = useState<{ libraryId: number; path: string; name: string } | null>(null);
+  const [showFolders, setShowFolders] = useState<boolean>(() => loadPref("mb-folders", true));
+  const [menu, setMenu] = useState<MenuState | null>(null);
   const [aiStatus, setAiStatus] = useState<AssetAiStatus | null>(null);
   const [vision, setVision] = useState<VisionStatus | null>(null);
   const [visionHint, setVisionHint] = useState<boolean>(() => !loadPref("mb-vision-hint-hidden", false));
@@ -276,6 +281,7 @@ function Browser({ view, resource, onClearResource, collection, onClearCollectio
   }, [view]);
   useEffect(() => savePref(`mb-layout-${view}`, layout), [layout, view]);
   useEffect(() => savePref("mb-autoplay", autoPlay), [autoPlay]);
+  useEffect(() => savePref("mb-folders", showFolders), [showFolders]);
   useEffect(() => {
     const t = setTimeout(() => setDebounced(text.trim()), aiReady ? 300 : 180);
     return () => clearTimeout(t);
@@ -304,7 +310,8 @@ function Browser({ view, resource, onClearResource, collection, onClearCollectio
       tag_id: tagId,
       ai_category: aiCat || null,
       semantic: aiReady,
-      library_id: libraryId,
+      library_id: folder ? folder.libraryId : libraryId,
+      folder: folder?.path || null,
       resource_id: resource?.id ?? null,
       collection_id: collection?.id ?? null,
       favorites: view === "favorites",
@@ -313,7 +320,7 @@ function Browser({ view, resource, onClearResource, collection, onClearCollectio
       desc,
       limit: PAGE,
     }),
-    [mediaType, debounced, ext, tagId, aiCat, aiReady, libraryId, resource, collection, view, sort, desc],
+    [mediaType, debounced, ext, tagId, aiCat, aiReady, libraryId, folder, resource, collection, view, sort, desc],
   );
 
   const load = useCallback(
@@ -486,7 +493,52 @@ function Browser({ view, resource, onClearResource, collection, onClearCollectio
   };
 
   const title = MEDIA_VIEW_LABEL[view];
-  const hasFilter = !!(debounced || ext || tagId || aiCat || libraryId || resource || collection);
+  const hasFilter = !!(debounced || ext || tagId || aiCat || libraryId || folder || resource || collection);
+
+  const openFolderOf = (it: AssetItem) => {
+    const path = folderOf(it.rel_path);
+    setFolder({ libraryId: it.library_id, path, name: path.split(/[\\/]/).pop() || libraries.find((l) => l.id === it.library_id)?.name || "Library" });
+    setShowFolders(true);
+  };
+
+  const itemMenu = (it: AssetItem, e: React.MouseEvent) => {
+    e.preventDefault();
+    if (!selected.has(it.id)) select(it);
+    const ids = selected.has(it.id) && selected.size > 1 ? [...selected] : [it.id];
+    const items: MenuItem[] = [
+      it.media_type === "audio"
+        ? { label: playing === it.id && !paused ? "Dừng" : "Nghe thử", icon: playing === it.id && !paused ? "pause" : "play", onClick: () => play(it) }
+        : { label: "Xem trước", icon: "eye", onClick: () => pick(it) },
+      { label: "Mở vị trí trong Explorer", icon: "folder", onClick: () => api.revealAsset(it.id).catch((err) => toast(errorText(err), "err")), disabled: !it.available },
+      {
+        label: ids.length > 1 ? `Sao chép ${ids.length} đường dẫn` : "Sao chép đường dẫn",
+        icon: "copy",
+        onClick: async () => {
+          const paths = await api.useAssets(ids);
+          await navigator.clipboard.writeText(paths.join("\r\n"));
+          toast(paths.length > 1 ? `Đã sao chép ${paths.length} đường dẫn` : "Đã sao chép đường dẫn");
+        },
+      },
+      "sep",
+      { label: it.favorite ? "Bỏ yêu thích" : "Yêu thích", icon: "star", onClick: () => toggleFav(ids, !it.favorite) },
+      { label: "Xem cả thư mục này", icon: "folder", onClick: () => openFolderOf(it) },
+    ];
+    if (it.media_type !== "audio" && it.resource_id != null && it.available) {
+      items.push({
+        label: "Đặt làm ảnh bìa của resource",
+        icon: "image",
+        onClick: () =>
+          api
+            .setCoverFromAsset(it.id)
+            .then(() => {
+              invalidateCovers([it.resource_id!]);
+              toast(`Đã đặt làm ảnh bìa của “${it.resource_name ?? "resource"}”`);
+            })
+            .catch((err) => toast(errorText(err), "err")),
+      });
+    }
+    setMenu({ x: e.clientX, y: e.clientY, items });
+  };
   const aiIndexing = aiStatus && aiStatus.indexed < aiStatus.total;
 
   return (
@@ -494,6 +546,14 @@ function Browser({ view, resource, onClearResource, collection, onClearCollectio
       <header className="toolbar">
         <div className="toolbar-title">
           <h1>{title}</h1>
+          {folder && (
+            <span className="chip mb-res-chip" title={folder.path || "Cả library"}>
+              <Icon name="folder" size={11} /> {folder.name}
+              <button className="chip-x" onClick={() => setFolder(null)} aria-label="Bỏ lọc thư mục">
+                <Icon name="x" size={10} />
+              </button>
+            </span>
+          )}
           {collection && (
             <span className="chip coll-chip mb-res-chip" title="Chỉ hiện file trong collection này">
               <Icon name="layers" size={11} /> {collection.name}
@@ -541,6 +601,14 @@ function Browser({ view, resource, onClearResource, collection, onClearCollectio
           )}
         </div>
         <div className="toolbar-actions">
+          <button
+            className={`icon-btn ${showFolders ? "on" : ""}`}
+            onClick={() => setShowFolders((v) => !v)}
+            title={showFolders ? "Ẩn cây thư mục" : "Duyệt theo thư mục"}
+            aria-pressed={showFolders}
+          >
+            <Icon name="folder" size={16} />
+          </button>
           <select value={ext} onChange={(e) => setExt(e.target.value)} aria-label="Định dạng">
             <option value="">Mọi định dạng</option>
             {facets?.exts.map((f) => (
@@ -641,7 +709,10 @@ function Browser({ view, resource, onClearResource, collection, onClearCollectio
         </div>
       )}
 
-      <div className="mb-body">
+      <div className={`mb-body ${showFolders ? "with-folders" : ""}`}>
+        {showFolders && (
+          <FolderTree mediaType={mediaType} selected={folder} onSelect={setFolder} reloadKey={reloadKey} />
+        )}
         <div
           className={`mb-results mb-${layout}`}
           ref={listRef}
@@ -673,6 +744,7 @@ function Browser({ view, resource, onClearResource, collection, onClearCollectio
                   id={`mb-${it.id}`}
                   className={`mb-row ${selected.has(it.id) ? "selected" : ""} ${it.available ? "" : "missing"}`}
                   onClick={(e) => select(it, e)}
+                  onContextMenu={(e) => itemMenu(it, e)}
                   onDoubleClick={() => it.media_type === "audio" && play(it)}
                   draggable={it.available}
                   onDragStart={(e) => {
@@ -724,6 +796,7 @@ function Browser({ view, resource, onClearResource, collection, onClearCollectio
                   id={`mb-${it.id}`}
                   className={`mb-card ${selected.has(it.id) ? "selected" : ""} ${it.available ? "" : "missing"}`}
                   onClick={(e) => select(it, e)}
+                  onContextMenu={(e) => itemMenu(it, e)}
                   onDoubleClick={() => it.media_type === "audio" && play(it)}
                   draggable={it.available}
                   onDragStart={(e) => {
@@ -796,6 +869,7 @@ function Browser({ view, resource, onClearResource, collection, onClearCollectio
               }}
               onOpenResource={onOpenResource}
               onPick={pick}
+              onShowFolder={() => openFolderOf(focus)}
               aiReady={aiReady}
               toast={toast}
             />
@@ -814,6 +888,7 @@ function Browser({ view, resource, onClearResource, collection, onClearCollectio
         </aside>
       </div>
 
+      <ContextMenu menu={menu} onClose={() => setMenu(null)} />
       <audio
         ref={audioRef}
         onPlay={() => setPaused(false)}
@@ -843,6 +918,7 @@ interface InspectorProps {
   onTagsChanged: () => void;
   onOpenResource: (id: number) => void;
   onPick: (item: AssetItem) => void;
+  onShowFolder: () => void;
   aiReady: boolean;
   toast: (msg: string, kind?: "ok" | "err") => void;
 }
@@ -860,6 +936,7 @@ function AssetInspector({
   onTagsChanged,
   onOpenResource,
   onPick,
+  onShowFolder,
   aiReady,
   toast,
 }: InspectorProps) {
@@ -990,6 +1067,9 @@ function AssetInspector({
         <div className="muted small mb-path" title={d?.path}>
           {folderOf(item.rel_path) || "(thư mục gốc library)"}
         </div>
+        <button className="link-btn small" onClick={onShowFolder}>
+          <Icon name="folder" size={12} /> Xem cả thư mục này
+        </button>
         <div className="mb-actions">
           <button
             className="btn primary mb-drag"
@@ -1230,5 +1310,97 @@ function BulkPanel({
       <CollectionPicker kind="asset" ids={ids} onChanged={onChanged} toast={toast} />
       <div className="muted small mb-hint">Ctrl + click để chọn thêm / bỏ, Shift + click để chọn một dải.</div>
     </div>
+  );
+}
+
+// ---------------------------------------------------------------- cây thư mục
+
+type FolderSel = { libraryId: number; path: string; name: string } | null;
+
+function FolderTree({
+  mediaType,
+  selected,
+  onSelect,
+  reloadKey,
+}: {
+  mediaType: MediaType | null;
+  selected: FolderSel;
+  onSelect: (f: FolderSel) => void;
+  reloadKey: number;
+}) {
+  const [roots, setRoots] = useState<FolderNode[] | null>(null);
+  const [children, setChildren] = useState<Record<string, FolderNode[] | "loading">>({});
+  const key = (n: { library_id: number; path: string }) => `${n.library_id}|${n.path}`;
+
+  useEffect(() => {
+    setChildren({});
+    api
+      .assetFolders(null, "", mediaType)
+      .then((r) => {
+        setRoots(r);
+        // 1 library -> mở sẵn cấp đầu
+        if (r.length === 1) toggle(r[0], true);
+      })
+      .catch(() => setRoots([]));
+  }, [mediaType, reloadKey]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const toggle = (n: FolderNode, forceOpen = false) => {
+    const k = key(n);
+    setChildren((c) => {
+      if (c[k] && !forceOpen) {
+        const next = { ...c };
+        delete next[k];
+        return next;
+      }
+      return { ...c, [k]: "loading" };
+    });
+    if (children[key(n)] && !forceOpen) return;
+    api
+      .assetFolders(n.library_id, n.path, mediaType)
+      .then((list) => setChildren((c) => (c[k] === "loading" ? { ...c, [k]: list } : c)))
+      .catch(() => setChildren((c) => ({ ...c, [k]: [] })));
+  };
+
+  const render = (nodes: FolderNode[], depth: number): React.ReactNode =>
+    nodes.map((n) => {
+      const k = key(n);
+      const open = children[k];
+      const isSel = selected && selected.libraryId === n.library_id && selected.path === n.path;
+      return (
+        <div key={k}>
+          <div className={`ft-row ${isSel ? "on" : ""}`} style={{ paddingLeft: 6 + depth * 14 }}>
+            <button className="ft-caret" onClick={() => n.has_children && toggle(n)} aria-label={open ? "Thu gọn" : "Mở rộng"}>
+              {n.has_children ? <span className={`caret ${open ? "open" : ""}`}>›</span> : null}
+            </button>
+            <button
+              className="ft-label"
+              onClick={() => {
+                onSelect({ libraryId: n.library_id, path: n.path, name: n.name });
+                if (n.has_children && !open) toggle(n);
+              }}
+              title={n.path || n.name}
+            >
+              <Icon name={depth === 0 ? "hdd" : "folder"} size={13} />
+              <span className="truncate">{n.name}</span>
+              <span className="ft-count">{formatNumber(n.count)}</span>
+            </button>
+          </div>
+          {open === "loading" && (
+            <div className="ft-loading" style={{ paddingLeft: 26 + depth * 14 }}>
+              <span className="spinner" />
+            </div>
+          )}
+          {Array.isArray(open) && render(open, depth + 1)}
+        </div>
+      );
+    });
+
+  return (
+    <nav className="mb-folders" aria-label="Thư mục">
+      <button className={`ft-row ft-all ${selected ? "" : "on"}`} onClick={() => onSelect(null)}>
+        <Icon name="all" size={13} /> Tất cả thư mục
+      </button>
+      {roots === null ? <span className="spinner" /> : roots.length === 0 ? <div className="muted small">Chưa có file.</div> : render(roots, 0)}
+    </nav>
   );
 }

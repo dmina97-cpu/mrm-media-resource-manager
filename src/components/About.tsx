@@ -116,6 +116,8 @@ const GUIDE: { id: string; title: string; steps: React.ReactNode[] }[] = [
       <>Rút ổ ngoài: resource vẫn còn, nguồn được đánh dấu <b>offline</b>. Cắm lại (kể cả khác ký tự ổ) → MRM tự nhận lại và quét.</>,
       <><b>Theo dõi thư mục</b> (bật mặc định): thêm/sửa file trong library thì vài giây sau MRM tự cập nhật.</>,
       <>Database tự backup mỗi ngày (giữ 10 bản). Có thể <b>Backup ngay</b>, <b>Khôi phục</b>, <b>Export JSON</b> trong Settings.</>,
+      <><b>Duyệt theo thư mục</b>: trong Media Browser bấm nút thư mục trên thanh công cụ để hiện cây thư mục — bấm một thư mục để chỉ xem file trong đó (gồm thư mục con).</>,
+      <><b>Chuột phải</b> vào resource hoặc file media để mở thư mục chứa, sao chép đường dẫn, yêu thích, xem cả thư mục…</>,
       <><b>Collections</b> (thanh bên): tự nhóm resource và file media theo ý bạn — vd “SFX vlog”. Thêm từ Inspector (ô <i>Thêm vào collection</i>) hoặc chọn nhiều mục cùng lúc.</>,
       <><b>Ảnh bìa</b>: bấm vào ảnh bìa rồi dán ảnh (<kbd>Ctrl</kbd>+<kbd>V</kbd>) hoặc bấm <b>Đổi ảnh bìa</b>; trong Media Browser bấm <b>Đặt làm ảnh bìa</b> trên một ảnh/video.</>,
       <>Xem được bên trong <b>ZIP, RAR, 7Z</b>. File nén có mật khẩu chỉ xem được danh sách file.</>,

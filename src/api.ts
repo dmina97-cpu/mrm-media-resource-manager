@@ -220,6 +220,7 @@ export interface AssetQuery {
   tag_id?: number | null;
   ai_category?: string | null;
   collection_id?: number | null;
+  folder?: string | null;
   semantic?: boolean;
   ext?: string | null;
   favorites?: boolean;
@@ -284,6 +285,14 @@ export interface AssetFacets {
   exts: { key: string; id: null; count: number }[];
   tags: { key: string; id: number; count: number }[];
   ai: { key: string; id: null; count: number }[];
+}
+
+export interface FolderNode {
+  library_id: number;
+  name: string;
+  path: string;
+  count: number;
+  has_children: boolean;
 }
 
 export interface CollectionInfo {
@@ -545,6 +554,10 @@ export const api = {
   tagAssetsByQuery: (query: AssetQuery, name: string) => invoke<number>("tag_assets_by_query", { query, name }),
   assetAiStatus: () => invoke<AssetAiStatus>("asset_ai_status"),
   visionStatus: () => invoke<VisionStatus>("vision_status"),
+  assetFolders: (libraryId: number | null, parent: string, mediaType: MediaType | null) =>
+    invoke<FolderNode[]>("asset_folders", { libraryId, parent, mediaType }),
+  revealResource: (id: number) => invoke<void>("reveal_resource", { id }),
+  resourcePaths: (id: number) => invoke<string[]>("resource_paths", { id }),
   listCollections: () => invoke<CollectionInfo[]>("list_collections"),
   createCollection: (name: string) => invoke<number>("create_collection", { name }),
   renameCollection: (id: number, name: string) => invoke<void>("rename_collection", { id, name }),

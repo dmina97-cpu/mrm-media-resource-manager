@@ -19,6 +19,7 @@ import { MediaBrowser, MediaView } from "./components/MediaBrowser";
 import { UpdateBanner } from "./components/Updates";
 import { Onboarding } from "./components/Onboarding";
 import { promptNewCollection } from "./components/Collections";
+import { ContextMenu, MenuState } from "./components/ContextMenu";
 import "./styles.css";
 import "./styles-media.css";
 
@@ -107,6 +108,7 @@ export default function App() {
   // Hướng dẫn lần đầu: chỉ khi chưa có library nào và chưa tắt
   const [onboarding, setOnboarding] = useState(false);
   const [collections, setCollections] = useState<CollectionInfo[]>([]);
+  const [resMenu, setResMenu] = useState<MenuState | null>(null);
   const refreshCollections = useCallback(() => {
     api.listCollections().then(setCollections).catch(() => undefined);
   }, []);
@@ -568,6 +570,34 @@ export default function App() {
                 focusId={focusId}
                 onSelect={select}
                 onToggleFavorite={toggleFavorite}
+                onContextMenu={(r, e) => {
+                  e.preventDefault();
+                  if (!selected.has(r.id)) select(r.id, {});
+                  setResMenu({
+                    x: e.clientX,
+                    y: e.clientY,
+                    items: [
+                      { label: "Mở thư mục chứa", icon: "folder", onClick: () => api.revealResource(r.id).catch((err) => toast(errorText(err), "err")) },
+                      {
+                        label: "Sao chép đường dẫn",
+                        icon: "copy",
+                        onClick: async () => {
+                          const paths = await api.resourcePaths(r.id);
+                          if (!paths.length) return toast("Resource hiện không truy cập được", "err");
+                          await navigator.clipboard.writeText(paths.join("\r\n"));
+                          toast("Đã sao chép đường dẫn");
+                        },
+                      },
+                      "sep",
+                      { label: r.favorite ? "Bỏ yêu thích" : "Yêu thích", icon: "star", onClick: () => toggleFavorite(r) },
+                      {
+                        label: "Xem file media trong gói",
+                        icon: "music",
+                        onClick: () => setRoute({ page: "media", view: "audio", resourceId: r.id, resourceName: r.name }),
+                      },
+                    ],
+                  });
+                }}
               />
             )}
           </>
@@ -703,6 +733,8 @@ export default function App() {
           toast={toast}
         />
       )}
+
+      <ContextMenu menu={resMenu} onClose={() => setResMenu(null)} />
 
       <div className="toasts" role="status">
         {toasts.map((t) => (
