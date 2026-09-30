@@ -1,0 +1,159 @@
+# Build MRM + đóng gói plugin HNH SFX Finder cho macOS (Mac chip Apple M) và gắn vào một Release đã có.
+# Không đụng tới bản Windows (workflow "Build & Release" giữ nguyên).
+#
+# Chạy: tab Actions -> "macOS build" -> Run workflow
+#   tag     = release muốn gắn file Mac vào (vd v0.11.0)
+#   publish = false: chỉ build + test, file nằm ở mục Artifacts của lần chạy
+name: macOS build
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release đã có để gắn file Mac (vd v0.11.0)"
+        type: string
+        required: true
+      publish:
+        description: "Tải file Mac lên Release đó"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: macos-${{ inputs.tag }}
+  cancel-in-progress: false
+
+env:
+  FFMPEG_VERSION: "8.1"
+  MACOSX_DEPLOYMENT_TARGET: "11.0"
+
+jobs:
+  build:
+    runs-on: macos-14 # Apple Silicon (arm64)
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Phiên bản
+        id: v
+        run: |
+          app=$(node -p "require('./src-tauri/tauri.conf.json').version")
+          plugin=$(node -p "require('./plugins/HNH_SFX_Finder_MRM/package.json').version")
+          echo "app=$app" >> "$GITHUB_OUTPUT"
+          echo "plugin=$plugin" >> "$GITHUB_OUTPUT"
+          echo "MRM $app · plugin $plugin · arch $(uname -m)"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri -> target
+          key: macos-arm64
+
+      # FFmpeg LGPL build từ mã nguồn (không có GPL/nonfree), tăng tốc bằng VideoToolbox/AudioToolbox của macOS
+      - name: Cache FFmpeg
+        id: ffcache
+        uses: actions/cache@v4
+        with:
+          path: ffmpeg-out
+          key: ffmpeg-${{ env.FFMPEG_VERSION }}-lgpl-arm64-macos11-v1
+
+      - name: Build FFmpeg (LGPL)
+        if: steps.ffcache.outputs.cache-hit != 'true'
+        run: |
+          curl -fsSL "https://ffmpeg.org/releases/ffmpeg-${FFMPEG_VERSION}.tar.xz" -o ffmpeg.tar.xz
+          tar xf ffmpeg.tar.xz
+          cd "ffmpeg-${FFMPEG_VERSION}"
+          ./configure --prefix="$PWD/../ffmpeg-out" \
+            --disable-gpl --disable-nonfree --disable-debug --disable-doc \
+            --disable-ffplay --disable-ffprobe --disable-network --disable-sdl2 \
+            --disable-xlib --disable-libxcb --disable-lzma --disable-iconv \
+            --enable-static --disable-shared \
+            --enable-videotoolbox --enable-audiotoolbox \
+            --extra-cflags="-mmacosx-version-min=${MACOSX_DEPLOYMENT_TARGET}" \
+            --extra-ldflags="-mmacosx-version-min=${MACOSX_DEPLOYMENT_TARGET}"
+          make -j"$(sysctl -n hw.ncpu)"
+          make install
+
+      - name: FFmpeg sidecar
+        run: |
+          cp ffmpeg-out/bin/ffmpeg src-tauri/binaries/ffmpeg-aarch64-apple-darwin
+          chmod +x src-tauri/binaries/ffmpeg-aarch64-apple-darwin
+          otool -L src-tauri/binaries/ffmpeg-aarch64-apple-darwin
+          # chỉ được phụ thuộc thư viện hệ thống macOS
+          if otool -L src-tauri/binaries/ffmpeg-aarch64-apple-darwin | tail -n +2 | grep -v -E "^\s*(/usr/lib/|/System/Library/)"; then
+            echo "FFmpeg phụ thuộc thư viện ngoài hệ thống"; exit 1
+          fi
+          src-tauri/binaries/ffmpeg-aarch64-apple-darwin -hide_banner -version | head -3
+          src-tauri/binaries/ffmpeg-aarch64-apple-darwin -hide_banner -encoders | grep -E "videotoolbox|aac|mjpeg|png" || true
+
+      - name: Cài thư viện frontend
+        run: npm ci
+
+      - name: Test Rust
+        working-directory: src-tauri
+        run: cargo test --locked
+
+      - name: Test plugin
+        working-directory: plugins/HNH_SFX_Finder_MRM
+        env:
+          HNH_ASSET_PLATFORM: win32 # test updater dùng tên gói Windows
+        run: |
+          for f in tests/*.test.cjs; do
+            echo "== $f"
+            node "$f" || exit 1
+          done
+
+      - name: Build MRM (.app + .dmg, ký ad-hoc)
+        run: npm run tauri build -- --target aarch64-apple-darwin --bundles app,dmg
+
+      - name: Đóng gói plugin (macOS)
+        run: |
+          v="${{ steps.v.outputs.plugin }}"
+          mkdir -p dist-plugin/stage
+          cp -R plugins/HNH_SFX_Finder_MRM dist-plugin/stage/
+          cd dist-plugin/stage/HNH_SFX_Finder_MRM
+          # bridge Windows không dùng được trên Mac: install_mac.sh lấy bản macOS từ Resolve
+          rm -rf node_modules tests/concurrency.cjs WorkflowIntegration.node install_windows.ps1 install_windows.bat
+          chmod +x install_mac.sh
+          cd ..
+          ditto -c -k --keepParent HNH_SFX_Finder_MRM "../HNH_SFX_Finder_MRM_v${v}_macOS.zip"
+
+      - name: Gom file phát hành
+        id: files
+        run: |
+          dmg=$(ls src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/*.dmg | head -1)
+          want="dist-mac/MRM_${{ steps.v.outputs.app }}_aarch64.dmg"
+          mkdir -p dist-mac
+          cp "$dmg" "$want"
+          zip="dist-plugin/HNH_SFX_Finder_MRM_v${{ steps.v.outputs.plugin }}_macOS.zip"
+          codesign -dv src-tauri/target/aarch64-apple-darwin/release/bundle/macos/MRM.app 2>&1 | head -5 || true
+          shasum -a 256 "$want" "$zip"
+          echo "dmg=$want" >> "$GITHUB_OUTPUT"
+          echo "zip=$zip" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: MRM-macOS-${{ steps.v.outputs.app }}
+          path: |
+            ${{ steps.files.outputs.dmg }}
+            ${{ steps.files.outputs.zip }}
+          retention-days: 14
+
+      - name: Gắn vào Release ${{ inputs.tag }}
+        if: inputs.publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view "${{ inputs.tag }}" > /dev/null
+          # chỉ thêm/thay 2 file Mac — file Windows giữ nguyên
+          gh release upload "${{ inputs.tag }}" "${{ steps.files.outputs.dmg }}" "${{ steps.files.outputs.zip }}" --clobber

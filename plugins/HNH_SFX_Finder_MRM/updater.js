@@ -2,7 +2,8 @@ const fs=require('node:fs/promises'),path=require('node:path'),https=require('no
 const history=require('./changelog');
 // Repo dùng chung với MRM: một release có thể chỉ có MRM -> phiên bản plugin lấy từ TÊN FILE zip, không từ tag
 const REPO='dmina97-cpu/mrm-media-resource-manager',API='https://api.github.com/repos/'+REPO+'/releases?per_page=30',PAGE='https://github.com/'+REPO+'/releases';
-const ASSET=/^HNH_SFX_Finder(?:_MRM)?_v((?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*))\.zip$/;
+// Windows: HNH_SFX_Finder_MRM_vX.Y.Z.zip — macOS: HNH_SFX_Finder_MRM_vX.Y.Z_macOS.zip
+const ASSET=(process.env.HNH_ASSET_PLATFORM||process.platform)==='darwin'?/^HNH_SFX_Finder_MRM_v((?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*))_macOS\.zip$/:/^HNH_SFX_Finder(?:_MRM)?_v((?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*))\.zip$/;
 function pluginAsset(data){return (data?.assets||[]).map(a=>({a,m:ASSET.exec(String(a?.name||''))})).filter(x=>x.m).sort((x,y)=>newer(x.m[1],y.m[1])?-1:1)[0]||null;}
 function version(s){const m=/^v?(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/.exec(String(s));return m?m.slice(1).map(Number):null;}
 function newer(a,b){const x=version(a),y=version(b);if(!x||!y)return false;for(let i=0;i<3;i++){if(x[i]!==y[i])return x[i]>y[i];}return false;}

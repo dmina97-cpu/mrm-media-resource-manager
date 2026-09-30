@@ -23,7 +23,11 @@ fn e<E: std::fmt::Display>(err: E) -> String {
 }
 
 pub const PORT: u16 = 11435;
+#[cfg(windows)]
 pub const RUNTIME_URL: &str = "https://github.com/ollama/ollama/releases/latest/download/ollama-windows-amd64.zip";
+/// macOS: bản CLI (universal, GPU Metal) — không cần Ollama.app
+#[cfg(not(windows))]
+pub const RUNTIME_URL: &str = "https://github.com/ollama/ollama/releases/latest/download/ollama-darwin.tgz";
 pub const DEFAULT_EMBED_MODEL: &str = "bge-m3";
 pub const DEFAULT_CHAT_MODEL: &str = "qwen2.5:7b";
 
@@ -69,7 +73,7 @@ fn ai_dir(state: &AppState) -> PathBuf {
     state.storage_dir().join("ai")
 }
 fn runtime_exe(state: &AppState) -> PathBuf {
-    ai_dir(state).join("ollama").join("ollama.exe")
+    ai_dir(state).join("ollama").join(if cfg!(windows) { "ollama.exe" } else { "ollama" })
 }
 fn models_dir(state: &AppState) -> PathBuf {
     ai_dir(state).join("models")
@@ -276,14 +280,12 @@ pub async fn ai_install(app: AppHandle) -> Res<()> {
         if !exe.exists() {
             let dir = ai_dir(&state);
             std::fs::create_dir_all(&dir).map_err(e)?;
-            let zip_path = dir.join("ollama-windows-amd64.zip");
+            let zip_path = dir.join(RUNTIME_URL.rsplit('/').next().unwrap_or("ollama-runtime"));
             if !zip_path.exists() {
                 download(&app, RUNTIME_URL, &zip_path)?;
             }
             set_progress(&app, "extracting", "Đang giải nén AI runtime…", 0, 0);
-            let f = std::fs::File::open(&zip_path).map_err(e)?;
-            let mut z = zip::ZipArchive::new(std::io::BufReader::new(f)).map_err(e)?;
-            z.extract(dir.join("ollama")).map_err(e)?;
+            unpack_runtime(&zip_path, &dir.join("ollama"), &exe)?;
             let _ = std::fs::remove_file(&zip_path); // chỉ xóa file tải tạm của app
         }
         start_server(&app)?;
@@ -345,6 +347,45 @@ pub struct AiStatus {
     analyzing: bool,
 }
 
+/// Giải nén runtime: .zip (Windows) hoặc .tgz (macOS); bảo đảm file chạy nằm đúng `exe` và có quyền chạy.
+fn unpack_runtime(archive: &Path, dir: &Path, exe: &Path) -> Res<()> {
+    std::fs::create_dir_all(dir).map_err(e)?;
+    let f = std::fs::File::open(archive).map_err(e)?;
+    #[cfg(not(windows))]
+    tar::Archive::new(flate2::read::GzDecoder::new(std::io::BufReader::new(f))).unpack(dir).map_err(e)?;
+    #[cfg(windows)]
+    zip::ZipArchive::new(std::io::BufReader::new(f)).map_err(e)?.extract(dir).map_err(e)?;
+    if !exe.exists() {
+        // một số gói để file chạy trong thư mục con -> đưa về đúng chỗ
+        let name = exe.file_name().unwrap_or_default();
+        if let Some(found) = walkdir::WalkDir::new(dir).into_iter().flatten().find(|en| en.file_type().is_file() && en.file_name() == name) {
+            std::fs::rename(found.path(), exe).map_err(e)?;
+        }
+    }
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        if let Ok(m) = std::fs::metadata(exe) {
+            let mut p = m.permissions();
+            p.set_mode(p.mode() | 0o755);
+            let _ = std::fs::set_permissions(exe, p);
+        }
+    }
+    if exe.exists() { Ok(()) } else { Err("Gói AI runtime không có file chạy ollama".into()) }
+}
+
+#[cfg(target_os = "macos")]
+fn gpu_name() -> Option<String> {
+    // Mac chip Apple: GPU tích hợp (Metal), dùng chung RAM
+    let sysctl = |k: &str| {
+        std::process::Command::new("sysctl").args(["-n", k]).output().ok().map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
+    };
+    let chip = sysctl("machdep.cpu.brand_string").filter(|s| !s.is_empty())?;
+    let ram = sysctl("hw.memsize").and_then(|s| s.parse::<u64>().ok()).map(|b| format!(", {} GB RAM dùng chung", b >> 30)).unwrap_or_default();
+    Some(format!("{chip} (GPU Metal){ram}"))
+}
+
+#[cfg(not(target_os = "macos"))]
 fn gpu_name() -> Option<String> {
     let mut c = std::process::Command::new("nvidia-smi");
     hidden(&mut c);

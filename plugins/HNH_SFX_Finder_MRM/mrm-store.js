@@ -27,7 +27,11 @@ const key = p => (process.platform === 'win32' ? path.resolve(p).toLowerCase() :
 
 function defaultDbPath() {
   if (process.env.MRM_DB) return process.env.MRM_DB;
-  const base = process.env.APPDATA || path.join(require('node:os').homedir(), 'AppData', 'Roaming');
+  const home = require('node:os').homedir();
+  // Thư mục dữ liệu của MRM (Tauri app_data_dir): Windows %APPDATA%, macOS ~/Library/Application Support
+  const base = process.platform === 'darwin'
+    ? path.join(home, 'Library', 'Application Support')
+    : process.env.APPDATA || path.join(home, 'AppData', 'Roaming');
   return path.join(base, 'com.nink.vault', 'nink-vault.db');
 }
 
@@ -207,7 +211,7 @@ class MrmStore {
 
   _sharedSettings() {
     const db = this.db;
-    const full = (root, rel) => (/[\\/]$/.test(root) ? root + rel : root + '\\' + rel);
+    const full = (root, rel) => (/[\\/]$/.test(root) ? root + rel : root + (root.startsWith('/') ? '/' : '\\') + rel);
     const libraries = db.prepare('SELECT path, media_types FROM api_libraries ORDER BY name').all().map(l => {
       let types; try { types = JSON.parse(l.media_types); } catch { types = ['audio', 'image', 'video']; }
       return { path: l.path, enabled: true, types };

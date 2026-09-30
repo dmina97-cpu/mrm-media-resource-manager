@@ -52,6 +52,10 @@ fn file_len(p: &std::path::Path) -> u64 {
 }
 
 fn windows_version() -> String {
+    if cfg!(target_os = "macos") {
+        let v = std::process::Command::new("sw_vers").arg("-productVersion").output();
+        return v.map(|o| format!("macOS {}", String::from_utf8_lossy(&o.stdout).trim())).unwrap_or_default();
+    }
     let mut c = std::process::Command::new("cmd");
     crate::media::hidden(&mut c);
     c.args(["/C", "ver"])

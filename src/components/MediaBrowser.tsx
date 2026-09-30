@@ -3,7 +3,7 @@ import { convertFileSrc } from "@tauri-apps/api/core";
 import { startDrag } from "@crabnebula/tauri-plugin-drag";
 import { api, AssetAiStatus, AssetDetail, AssetFacets, AssetItem, AssetQuery, AssetSort, FavoriteFolder, FolderNode, Library, MediaType, Presence, VisionStatus } from "../api";
 import { ContextMenu, MenuItem, MenuState } from "./ContextMenu";
-import { errorText, formatDateTime, formatNumber, formatSize } from "../format";
+import { errorText, formatDateTime, formatNumber, formatSize, FILE_MANAGER } from "../format";
 import { Icon } from "./Icon";
 import { CollectionPicker } from "./Collections";
 import { invalidateCovers } from "./Media";
@@ -531,7 +531,7 @@ function Browser({ view, resource, onClearResource, collection, onClearCollectio
       it.media_type === "audio"
         ? { label: playing === it.id && !paused ? "Dừng" : "Nghe thử", icon: playing === it.id && !paused ? "pause" : "play", onClick: () => play(it) }
         : { label: "Xem trước", icon: "eye", onClick: () => pick(it) },
-      { label: "Mở vị trí trong Explorer", icon: "folder", onClick: () => api.revealAsset(it.id).catch((err) => toast(errorText(err), "err")), disabled: !it.available },
+      { label: `Mở vị trí trong ${FILE_MANAGER}`, icon: "folder", onClick: () => api.revealAsset(it.id).catch((err) => toast(errorText(err), "err")), disabled: !it.available },
       {
         label: ids.length > 1 ? `Sao chép ${ids.length} đường dẫn` : "Sao chép đường dẫn",
         icon: "copy",

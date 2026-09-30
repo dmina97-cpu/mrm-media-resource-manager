@@ -840,7 +840,7 @@ fn resource_paths_of(conn: &Connection, id: i64) -> Res<Vec<String>> {
         [id],
         |r| Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?)),
     )?;
-    Ok(v.into_iter().map(|(l, r)| join_path(&l, &r).replace('/', "\\")).collect())
+    Ok(v.into_iter().map(|(l, r)| native_path(join_path(&l, &r))).collect())
 }
 
 /// Mở Explorer, chọn sẵn nguồn đầu tiên của resource (menu chuột phải).
@@ -854,6 +854,11 @@ pub fn reveal_resource(state: State<AppState>, id: i64) -> Res<()> {
 #[tauri::command]
 pub fn resource_paths(state: State<AppState>, id: i64) -> Res<Vec<String>> {
     resource_paths_of(&state.db.lock().unwrap(), id)
+}
+
+/// Windows: đổi '/' thành '\\' (Explorer cần); macOS giữ nguyên.
+fn native_path(p: String) -> String {
+    if cfg!(windows) { p.replace('/', "\\") } else { p }
 }
 
 fn join_path(lib: &str, rel: &str) -> String {
@@ -1092,7 +1097,7 @@ pub fn reveal_source(state: State<AppState>, source_id: i64) -> Res<()> {
             |r| Ok((r.get(0)?, r.get(1)?)),
         )
         .map_err(e)?;
-    let abs = join_path(&lib, &rel).replace('/', "\\");
+    let abs = native_path(join_path(&lib, &rel));
     if !Path::new(&abs).exists() {
         return Err("Nguồn hiện không truy cập được".into());
     }

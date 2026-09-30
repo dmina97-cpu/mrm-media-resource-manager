@@ -33,3 +33,10 @@ export function formatNumber(n: number): string {
 export function errorText(err: unknown): string {
   return typeof err === "string" ? err : err instanceof Error ? err.message : JSON.stringify(err);
 }
+
+/** Chạy trên macOS? (một số chữ trong giao diện khác Windows) */
+export const IS_MAC = typeof navigator !== "undefined" && /Mac/i.test(navigator.userAgent);
+/** Trình quản lý file của hệ điều hành */
+export const FILE_MANAGER = IS_MAC ? "Finder" : "Explorer";
+/** Ví dụ thư mục tài nguyên */
+export const EXAMPLE_ROOT = IS_MAC ? "/Volumes/Data/Resources" : "D:\Resources";

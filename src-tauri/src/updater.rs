@@ -27,9 +27,15 @@ pub fn parse_version(s: &str) -> Option<(u64, u64, u64)> {
     it.next().is_none().then_some(v)
 }
 
-/// "MRM_0.9.0_x64-setup.exe" -> "0.9.0"
+/// Tên file cài của nền tảng này: Windows "MRM_x.y.z_x64-setup.exe", Mac chip M "MRM_x.y.z_aarch64.dmg".
+#[cfg(target_os = "macos")]
+pub const ASSET_SUFFIX: &str = "_aarch64.dmg";
+#[cfg(not(target_os = "macos"))]
+pub const ASSET_SUFFIX: &str = "_x64-setup.exe";
+
+/// "MRM_0.9.0_x64-setup.exe" -> "0.9.0" (theo ASSET_SUFFIX của nền tảng)
 fn asset_version(name: &str) -> Option<String> {
-    let v = name.strip_prefix("MRM_")?.strip_suffix("_x64-setup.exe")?;
+    let v = name.strip_prefix("MRM_")?.strip_suffix(ASSET_SUFFIX)?;
     parse_version(v).map(|_| v.to_string())
 }
 
@@ -262,7 +268,8 @@ pub async fn update_install(app: AppHandle) -> Res<()> {
     })
     .await
     .map_err(e)??;
-    // ShellExecute: bộ cài có thể cần quyền admin (UAC)
+    // Windows: ShellExecute (bộ cài có thể cần quyền admin — UAC).
+    // macOS: mở file .dmg -> Finder hiện cửa sổ kéo MRM vào Applications để thay bản cũ.
     tauri_plugin_opener::open_path(&installer, None::<&str>).map_err(e)?;
     let h = app.clone();
     std::thread::spawn(move || {
@@ -288,10 +295,10 @@ mod tests {
         let releases = json!([
             { "tag_name": "plugin-v0.13.0", "draft": false, "prerelease": false, "body": "plugin only",
               "assets": [asset("HNH_SFX_Finder_MRM_v0.13.0.zip", 10)] },
-            { "tag_name": "v0.10.0-beta", "draft": false, "prerelease": true, "assets": [asset("MRM_0.10.0_x64-setup.exe", 10)] },
+            { "tag_name": "v0.10.0-beta", "draft": false, "prerelease": true, "assets": [asset(&format!("MRM_0.10.0{ASSET_SUFFIX}"), 10)] },
             { "tag_name": "v0.9.0", "draft": false, "prerelease": false, "body": "Điểm mới", "published_at": "2026-10-01",
-              "assets": [asset("MRM_0.9.0_x64-setup.exe", 123), asset("HNH_SFX_Finder_MRM_v0.12.1.zip", 10)] },
-            { "tag_name": "v0.8.0", "draft": false, "prerelease": false, "assets": [asset("MRM_0.8.0_x64-setup.exe", 100)] },
+              "assets": [asset(&format!("MRM_0.9.0{ASSET_SUFFIX}"), 123), asset("HNH_SFX_Finder_MRM_v0.12.1.zip", 10)] },
+            { "tag_name": "v0.8.0", "draft": false, "prerelease": false, "assets": [asset(&format!("MRM_0.8.0{ASSET_SUFFIX}"), 100)] },
             { "tag_name": "evil", "draft": false, "prerelease": false,
               "assets": [{ "name": "MRM_9.9.9_x64-setup.exe", "size": 1, "browser_download_url": "https://evil.test/MRM_9.9.9_x64-setup.exe" }] }
         ]);
@@ -326,8 +333,8 @@ mod tests {
 
     #[test]
     fn version_parsing() {
-        assert_eq!(asset_version("MRM_0.10.2_x64-setup.exe").as_deref(), Some("0.10.2"));
-        assert!(asset_version("MRM_0.10_x64-setup.exe").is_none());
+        assert_eq!(asset_version(&format!("MRM_0.10.2{ASSET_SUFFIX}")).as_deref(), Some("0.10.2"));
+        assert!(asset_version(&format!("MRM_0.10{ASSET_SUFFIX}")).is_none());
         assert!(parse_version("v0.10.0") > parse_version("0.9.9"));
         assert!(parse_version("0.8.0-beta").is_none());
     }

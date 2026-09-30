@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { api, DuplicateGroup, ExistingHit, VersionItem } from "../api";
-import { errorText, formatSize } from "../format";
+import { errorText, FILE_MANAGER, formatSize } from "../format";
 import { Icon } from "./Icon";
 
 interface Props {
@@ -104,7 +104,7 @@ function Duplicates({ reloadKey, onChanged, onOpen, toast }: Props) {
           </section>
         );
       })}
-      <p className="muted small">Muốn xóa bản thừa? Dùng “Mở vị trí” trong Inspector rồi tự xóa trong Explorer — MRM không bao giờ tự xóa file.</p>
+      <p className="muted small">Muốn xóa bản thừa? Dùng “Mở vị trí” trong Inspector rồi tự xóa trong {FILE_MANAGER} — MRM không bao giờ tự xóa file.</p>
     </div>
   );
 }

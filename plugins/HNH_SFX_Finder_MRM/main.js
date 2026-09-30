@@ -192,8 +192,11 @@ async function getCurrentIndex(settings) {
 }
 
 function workflowIntegrationCandidates() {
-  const programData = process.env.PROGRAMDATA || 'C:\\ProgramData';
-  const supportRoot = path.join(programData, 'Blackmagic Design', 'DaVinci Resolve', 'Support');
+  // Windows: %PROGRAMDATA%\Blackmagic Design\DaVinci Resolve\Support\Developer\...
+  // macOS:   /Library/Application Support/Blackmagic Design/DaVinci Resolve/Developer/...
+  const supportRoot = process.platform === 'darwin'
+    ? path.join('/Library', 'Application Support', 'Blackmagic Design', 'DaVinci Resolve')
+    : path.join(process.env.PROGRAMDATA || 'C:\\ProgramData', 'Blackmagic Design', 'DaVinci Resolve', 'Support');
   const examplesRoot = path.join(supportRoot, 'Developer', 'Workflow Integrations', 'Examples');
 
   // v0.1.3: Prefer the exact Resolve 20.2 WorkflowIntegration.node bundled with this build.

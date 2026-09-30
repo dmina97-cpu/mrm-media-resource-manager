@@ -2,7 +2,7 @@ import { useState } from "react";
 import { open } from "@tauri-apps/plugin-dialog";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { AiStatus, api, Library, ScanProgress } from "../api";
-import { errorText, formatNumber } from "../format";
+import { errorText, EXAMPLE_ROOT, formatNumber } from "../format";
 import { Icon } from "./Icon";
 import { ExcludeSettings } from "./Updates";
 
@@ -98,7 +98,7 @@ export function Onboarding({ libraries, scanning, progress, ai, onScan, onChange
             <>
               <h2>Chọn thư mục tài nguyên</h2>
               <p>
-                Chọn thư mục gốc chứa tài nguyên (vd: <code>D:\Resources</code>). MRM tự nhận ra đâu là thư mục phân loại, đâu là một gói — kể cả ZIP và folder đã giải nén.
+                Chọn thư mục gốc chứa tài nguyên (vd: <code>{EXAMPLE_ROOT}</code>). MRM tự nhận ra đâu là thư mục phân loại, đâu là một gói — kể cả ZIP và folder đã giải nén.
                 Có thể thêm nhiều thư mục, ở nhiều ổ đĩa.
               </p>
               <div className="ob-libs">

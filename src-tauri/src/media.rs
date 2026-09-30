@@ -599,12 +599,16 @@ pub async fn get_video_proxy(app: AppHandle, source_id: Option<i64>, asset_id: O
         }
         let input = materialize(&state, &src, &locate(&src, &path)?)?;
         let scale = "scale=w=1280:h=720:force_original_aspect_ratio=decrease:force_divisible_by=2";
-        // GPU (NVENC) -> OpenH264 (CPU) -> VP9 (CPU)
-        let attempts: [(&str, &[&str], &[&str]); 3] = [
+        // macOS: VideoToolbox (GPU Apple). Windows: NVENC (GPU) -> OpenH264 (CPU) -> VP9 (CPU)
+        let mut attempts: Vec<(&str, &[&str], &[&str])> = Vec::new();
+        if cfg!(target_os = "macos") {
+            attempts.push(("mp4", &["-c:v", "h264_videotoolbox", "-b:v", "4M"], &["-c:a", "aac", "-b:a", "128k", "-movflags", "+faststart"]));
+        }
+        attempts.extend([
             ("mp4", &["-c:v", "h264_nvenc", "-preset", "p4", "-cq", "28"], &["-c:a", "aac", "-b:a", "128k", "-movflags", "+faststart"]),
             ("mp4", &["-c:v", "libopenh264", "-b:v", "3M"], &["-c:a", "aac", "-b:a", "128k", "-movflags", "+faststart"]),
             ("webm", &["-c:v", "libvpx-vp9", "-deadline", "realtime", "-cpu-used", "8", "-b:v", "2M"], &["-c:a", "libopus", "-b:a", "128k"]),
-        ];
+        ] as [(&str, &[&str], &[&str]); 3]);
         for (ext, venc, aenc) in attempts {
             let part = dir.join(format!("{key}.part.{ext}"));
             let ok = ffmpeg()

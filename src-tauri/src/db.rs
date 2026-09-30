@@ -531,7 +531,9 @@ FROM libraries l;
 
 CREATE VIEW api_assets AS
 SELECT a.id, a.uid, a.library_id, l.path AS root, a.rel_path,
-       CASE WHEN substr(l.path, -1) IN ('\', '/') THEN l.path || a.rel_path ELSE l.path || '\' || a.rel_path END AS path,
+       CASE WHEN substr(l.path, -1) IN ('\', '/') THEN l.path || a.rel_path
+            WHEN substr(l.path, 1, 1) = '/' THEN l.path || '/' || a.rel_path
+            ELSE l.path || '\' || a.rel_path END AS path,
        a.filename, a.ext, a.media_type, a.size, a.modified_ms, a.available, a.added_at,
        a.seq_pattern, a.seq_start, a.seq_end, a.seq_count,
        a.duration, a.width, a.height, a.fps, a.codec, a.sample_rate, a.channels,

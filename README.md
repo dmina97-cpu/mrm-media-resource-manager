@@ -1,6 +1,6 @@
 # MRM — Media Resource Manager
 
-**Quản lý tài nguyên dựng video trên Windows**: plugin, LUT, SFX, template, preset, footage — gom về một chỗ, tìm nhanh, xem trước, kéo thả thẳng vào app dựng. Kèm plugin **HNH SFX Finder** cho DaVinci Resolve.
+**Quản lý tài nguyên dựng video trên Windows và macOS (chip Apple M)**: plugin, LUT, SFX, template, preset, footage — gom về một chỗ, tìm nhanh, xem trước, kéo thả thẳng vào app dựng. Kèm plugin **HNH SFX Finder** cho DaVinci Resolve.
 
 > Files belong to Windows. Metadata belongs to MRM.
 > MRM **không bao giờ** di chuyển, đổi tên hay xóa file thật của bạn — chỉ đọc để lập chỉ mục.
@@ -19,15 +19,17 @@ Nhà phát triển: **Phạm Nam**
 
 Tải bản cài ở mục **[Releases](../../releases)**:
 
-- `MRM_x.y.z_x64-setup.exe` — ứng dụng MRM
-- `HNH_SFX_Finder_MRM_vx.y.z.zip` — plugin cho DaVinci Resolve
+| | Windows 10/11 64-bit | macOS 11+ (Mac chip Apple M) |
+|---|---|---|
+| Ứng dụng MRM | `MRM_x.y.z_x64-setup.exe` | `MRM_x.y.z_aarch64.dmg` |
+| Plugin DaVinci Resolve | `HNH_SFX_Finder_MRM_vx.y.z.zip` | `HNH_SFX_Finder_MRM_vx.y.z_macOS.zip` |
 
 ## Phiên bản hiện tại
 
 | Thành phần | Phiên bản |
 |---|---|
 | MRM | **0.11.0** |
-| Plugin HNH SFX Finder | **0.12.1** |
+| Plugin HNH SFX Finder | **0.12.2** |
 
 ## Yêu cầu hệ thống
 
@@ -35,7 +37,7 @@ Tải bản cài ở mục **[Releases](../../releases)**:
 
 | | Tối thiểu | Khuyên dùng |
 |---|---|---|
-| Hệ điều hành | Windows 10 64-bit | Windows 11 64-bit |
+| Hệ điều hành | Windows 10 64-bit · macOS 11 (Mac chip Apple M) | Windows 11 64-bit · macOS 14+ |
 | RAM | 4 GB | 8 GB+ |
 | Ổ đĩa | ~200 MB + cache xem trước (mặc định tối đa 4 GB, chỉnh được) | SSD |
 | Khác | WebView2 (có sẵn trên Windows 11, bộ cài tự cài nếu thiếu) | |
@@ -44,7 +46,7 @@ Tải bản cài ở mục **[Releases](../../releases)**:
 
 | | Yêu cầu |
 |---|---|
-| GPU | NVIDIA 6–8 GB VRAM trở lên (đã thử trên RTX 3060 Ti 8 GB). Không có GPU vẫn chạy bằng CPU nhưng chậm |
+| GPU | Windows: NVIDIA 6–8 GB VRAM trở lên (đã thử trên RTX 3060 Ti 8 GB). Không có GPU vẫn chạy bằng CPU nhưng chậm. Mac chip M: dùng GPU tích hợp (Metal), nên có 16 GB RAM |
 | RAM | 16 GB khuyên dùng |
 | Ổ đĩa | ~8–10 GB cho AI runtime + model; thêm ~3.3 GB nếu bật **AI nhìn ảnh/video** |
 | Mạng | Chỉ cần khi tải model lần đầu. Sau đó chạy hoàn toàn offline, không gửi dữ liệu ra ngoài |
@@ -54,8 +56,8 @@ Tải bản cài ở mục **[Releases](../../releases)**:
 | | Yêu cầu |
 |---|---|
 | Phần mềm | **DaVinci Resolve Studio 20.2+** (Workflow Integration chỉ có trên bản Studio) |
-| Hệ điều hành | Windows 10/11 64-bit |
-| Cài đặt | Quyền Administrator, đóng Resolve trước khi cài |
+| Hệ điều hành | Windows 10/11 64-bit · macOS (Mac chip Apple M) |
+| Cài đặt | Quyền Administrator (Mac: mật khẩu máy), đóng Resolve trước khi cài |
 
 ## Tính năng chính
 
@@ -111,11 +113,33 @@ Từ bản 0.9.0, MRM tự báo khi có bản mới (Libraries & Settings → C�
 3. Chuột phải `install_windows.bat` → **Run as administrator**.
 4. Mở Resolve → **Workspace → Workflow Integrations → HNH SFX Finder (MRM)**.
 
+### macOS (Mac chip Apple M1/M2/M3/M4…)
+
+> Bản Mac chưa ký số với Apple (miễn phí, không cần tài khoản Apple Developer) → lần đầu mở cần cho phép thủ công.
+
+**MRM**
+
+1. Tải `MRM_x.y.z_aarch64.dmg`, mở ra và kéo **MRM** vào **Applications**.
+2. Mở MRM. Nếu macOS chặn: **System Settings → Privacy & Security** → kéo xuống, bấm **Open Anyway** (macOS 14 trở về trước: chuột phải MRM → **Open**).
+3. Nếu báo *"MRM is damaged and can't be opened"*, mở **Terminal** và chạy:
+   ```bash
+   xattr -dr com.apple.quarantine /Applications/MRM.app
+   ```
+
+**Plugin**
+
+1. Thoát hẳn DaVinci Resolve.
+2. Giải nén `HNH_SFX_Finder_MRM_vx.y.z_macOS.zip`.
+3. Mở **Terminal**, gõ `sh ` (có dấu cách), kéo file `install_mac.sh` vào cửa sổ Terminal rồi Enter; nhập mật khẩu máy Mac khi được hỏi.
+4. Mở Resolve → **Workspace → Workflow Integrations → HNH SFX Finder (MRM)**.
+
+Script lấy file bridge `WorkflowIntegration.node` bản macOS có sẵn trong Resolve (`/Library/Application Support/Blackmagic Design/DaVinci Resolve/Developer/Workflow Integrations/Examples`).
+
 ## Dữ liệu được lưu ở đâu
 
 | Dữ liệu | Vị trí |
 |---|---|
-| Database MRM + backup | `%APPDATA%\com.nink.vault\` |
+| Database MRM + backup | Windows: `%APPDATA%\com.nink.vault\` · Mac: `~/Library/Application Support/com.nink.vault/` |
 | Cache xem trước, AI runtime, model | Thư mục chọn trong MRM → Settings → Lưu trữ |
 | Dữ liệu plugin | `%APPDATA%\Electron\HNH-SFX-Finder-MRM\` |
 

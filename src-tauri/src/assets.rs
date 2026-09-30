@@ -8,6 +8,14 @@ use std::path::Path;
 use tauri::{AppHandle, Manager, State};
 
 type Res<T> = Result<T, String>;
+
+/// Dấu phân cách trong `media_assets.rel_path` (Windows '\\', macOS '/').
+const SEP: char = std::path::MAIN_SEPARATOR;
+
+/// Chuẩn hóa đường dẫn thư mục người dùng gửi lên về dạng lưu trong DB.
+fn native_rel(p: &str) -> String {
+    p.replace(['/', '\\'], &SEP.to_string()).trim_matches(SEP).to_string()
+}
 fn e<E: std::fmt::Display>(err: E) -> String {
     err.to_string()
 }
@@ -112,9 +120,9 @@ fn build_filter(q: &AssetQuery, sem: &[(i64, f32)]) -> (String, Vec<Value>) {
     }
     if let Some(f) = q.folder.as_deref().map(|f| f.trim_matches(['\\', '/'])).filter(|f| !f.is_empty()) {
         // dùng '!' làm ký tự escape vì đường dẫn Windows chứa '\'
-        let esc = f.replace('/', "\\").replace('!', "!!").replace('%', "!%").replace('_', "!_");
+        let esc = native_rel(f).replace('!', "!!").replace('%', "!%").replace('_', "!_");
         w.push("a.rel_path LIKE ? ESCAPE '!'".into());
-        p.push(Value::Text(format!("{esc}\\%")));
+        p.push(Value::Text(format!("{esc}{SEP}%")));
     }
     if let Some(id) = q.collection_id {
         w.push("EXISTS (SELECT 1 FROM collection_assets y WHERE y.asset_id = a.id AND y.collection_id = ?)".into());
@@ -658,8 +666,8 @@ pub fn asset_folders(state: State<AppState>, library_id: Option<i64>, parent: St
             .collect();
         return Ok(v);
     };
-    let parent = parent.replace('/', "\\").trim_matches('\\').to_string();
-    let prefix = if parent.is_empty() { String::new() } else { format!("{parent}\\") };
+    let parent = native_rel(&parent);
+    let prefix = if parent.is_empty() { String::new() } else { format!("{parent}{SEP}") };
     let like = format!("{}%", prefix.replace('!', "!!").replace('%', "!%").replace('_', "!_"));
     let mut s = conn
         .prepare("SELECT rel_path FROM media_assets WHERE library_id = ?1 AND available = 1 AND (?2 = '' OR media_type = ?2) AND rel_path LIKE ?3 ESCAPE '!'")
@@ -667,10 +675,10 @@ pub fn asset_folders(state: State<AppState>, library_id: Option<i64>, parent: St
     let mut map: std::collections::BTreeMap<String, (String, i64, bool)> = std::collections::BTreeMap::new();
     for rel in s.query_map(params![lib, mt, like], |r| r.get::<_, String>(0)).map_err(e)?.flatten() {
         let rest = &rel[prefix.len().min(rel.len())..];
-        if let Some((dir, more)) = rest.split_once('\\') {
+        if let Some((dir, more)) = rest.split_once(SEP) {
             let entry = map.entry(dir.to_lowercase()).or_insert_with(|| (dir.to_string(), 0, false));
             entry.1 += 1;
-            if more.contains('\\') {
+            if more.contains(SEP) {
                 entry.2 = true;
             }
         }
@@ -699,12 +707,12 @@ pub fn favorite_folders(conn: &Connection, media_type: &str) -> Res<Vec<Favorite
             "SELECT f.id, f.library_id, f.path, f.name,
                     (SELECT count(*) FROM media_assets a WHERE a.library_id = f.library_id AND a.available = 1
                        AND (?1 = '' OR a.media_type = ?1)
-                       AND (f.path = '' OR a.rel_path LIKE replace(replace(replace(f.path, '!', '!!'), '%', '!%'), '_', '!_') || '\\%' ESCAPE '!'))
+                       AND (f.path = '' OR a.rel_path LIKE replace(replace(replace(f.path, '!', '!!'), '%', '!%'), '_', '!_') || ?2 ESCAPE '!'))
              FROM favorite_folders f ORDER BY f.name COLLATE NOCASE",
         )
         .map_err(e)?;
     let v = s
-        .query_map([media_type], |r| Ok(FavoriteFolder { id: r.get(0)?, library_id: r.get(1)?, path: r.get(2)?, name: r.get(3)?, count: r.get(4)? }))
+        .query_map(params![media_type, format!("{SEP}%")], |r| Ok(FavoriteFolder { id: r.get(0)?, library_id: r.get(1)?, path: r.get(2)?, name: r.get(3)?, count: r.get(4)? }))
         .map_err(e)?
         .flatten()
         .collect();
@@ -721,9 +729,9 @@ pub fn list_favorite_folders(state: State<AppState>, media_type: Option<String>)
 #[tauri::command]
 pub fn set_favorite_folder(state: State<AppState>, library_id: i64, path: String, name: String, on: bool) -> Res<()> {
     let conn = state.db.lock().unwrap();
-    let path = path.replace('/', "\\").trim_matches('\\').to_string();
+    let path = native_rel(&path);
     if on {
-        let name = if name.trim().is_empty() { path.rsplit('\\').next().unwrap_or("Thư mục").to_string() } else { name.trim().to_string() };
+        let name = if name.trim().is_empty() { path.rsplit(SEP).next().unwrap_or("Thư mục").to_string() } else { name.trim().to_string() };
         conn.execute(
             "INSERT INTO favorite_folders (library_id, path, name, created_at) VALUES (?1, ?2, ?3, ?4)
              ON CONFLICT(library_id, path) DO UPDATE SET name = excluded.name",
@@ -760,7 +768,9 @@ mod tests {
         conn.execute("INSERT INTO libraries (id, name, path, created_at) VALUES (1, 'L', 'D:\\Lib', 0)", []).unwrap();
         conn.execute("INSERT INTO resources (id, name, created_at, updated_at) VALUES (7, 'Whoosh Pack', 0, 0)", []).unwrap();
         let add = |id: i64, t: &str, rel: &str, size: i64, res: Option<i64>| {
-            let name = rel.rsplit('\\').next().unwrap();
+            let rel = rel.replace('\\', &SEP.to_string());
+            let rel = rel.as_str();
+            let name = rel.rsplit(SEP).next().unwrap();
             let ext = name.rsplit('.').next().unwrap();
             conn.execute(
                 "INSERT INTO media_assets (id, uid, library_id, resource_id, media_type, rel_path, filename, ext, size, modified_ms, added_at, last_seen)
@@ -811,8 +821,8 @@ mod tests {
         // lọc theo thư mục (gồm thư mục con), không nhầm "SFX2"
         conn.execute(
             "INSERT INTO media_assets (id, uid, library_id, media_type, rel_path, filename, ext, size, modified_ms, added_at, last_seen)
-             VALUES (9, 'u9', 1, 'audio', 'SFX2\\x.wav', 'x.wav', 'wav', 1, 0, 0, 0), (10, 'u10', 1, 'audio', 'SFX\\Deep\\y.wav', 'y.wav', 'wav', 1, 0, 0, 0)",
-            [],
+             VALUES (9, 'u9', 1, 'audio', ?1, 'x.wav', 'wav', 1, 0, 0, 0), (10, 'u10', 1, 'audio', ?2, 'y.wav', 'wav', 1, 0, 0, 0)",
+            params![format!("SFX2{SEP}x.wav"), format!("SFX{SEP}Deep{SEP}y.wav")],
         )
         .unwrap();
         let f = q(AssetQuery { library_id: Some(1), folder: Some("SFX".into()), ..Default::default() });
@@ -824,7 +834,7 @@ mod tests {
         assert_eq!((fav.len(), fav[0].count), (1, 3), "SFX: whoosh_fast, impact, Deep/y — không tính SFX2/x");
 
         let d = detail(&conn, 2).unwrap();
-        assert_eq!(d.path, "D:\\Lib\\SFX\\impact 100%.mp3");
+        assert_eq!(d.path, format!("D:\\Lib\\SFX{SEP}impact 100%.mp3"));
         assert_eq!(d.tags.len(), 1);
         drop(conn);
         let _ = std::fs::remove_dir_all(&dir);

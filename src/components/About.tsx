@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { EXAMPLE_ROOT, FILE_MANAGER } from "../format";
 import { getVersion } from "@tauri-apps/api/app";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { Icon } from "./Icon";
@@ -24,7 +25,7 @@ const GUIDE: { id: string; title: string; steps: React.ReactNode[] }[] = [
     id: "start",
     title: "1. Bắt đầu: thêm thư viện",
     steps: [
-      <>Vào <b>Libraries & Settings</b> → <b>Thêm Library</b>, chọn thư mục chứa tài nguyên (vd: <code>D:\Resources</code>). MRM tự quét ngay.</>,
+      <>Vào <b>Libraries & Settings</b> → <b>Thêm Library</b>, chọn thư mục chứa tài nguyên (vd: <code>{EXAMPLE_ROOT}</code>). MRM tự quét ngay.</>,
       <>Mặc định <b>Cách quét: Tự động</b>: MRM tự nhận ra đâu là thư mục phân loại (vd: <code>Luts</code>, <code>Plug in</code>) để đi vào trong, đâu là một gói tài nguyên — kể cả gói bọc nhiều lớp <code>Gói\Gói\…</code> hay bundle có thư mục Help/Fonts.</>,
       <>Nhận sai? Trong Inspector → Sources bấm <b>Tách nhỏ</b> (thư mục chứa nhiều gói) hoặc <b>Gộp thư mục cha</b> (một gói bị chia vụn). MRM ghi nhớ lựa chọn và giữ lại tag/notes khi nhóm lại.</>,
       <>Tên thư mục chứa được dùng để gợi ý phân loại: gói trong <code>Luts</code> → LUT, trong <code>DR plugin</code> → DaVinci Resolve, trong <code>Preset LR</code> → Lightroom.</>,
@@ -77,7 +78,7 @@ const GUIDE: { id: string; title: string; steps: React.ReactNode[] }[] = [
       <>Trong Inspector, mở <b>Nội dung bên trong</b> để duyệt file của folder/ZIP; click một file để xem. Dùng <kbd>←</kbd> <kbd>→</kbd> để chuyển file, <kbd>Esc</kbd> để đóng.</>,
       <>Video ProRes/DNxHR/HEVC được tự tạo bản xem thử 720p (dùng GPU nếu có). Audio có waveform — click vào waveform để tua.</>,
       <>Muốn đổi ảnh bìa: mở ảnh/video trong cửa sổ xem trước → <b>Đặt làm ảnh bìa</b>.</>,
-      <>Bấm <b>Mở vị trí</b> để mở thư mục trong Explorer, hoặc <b>Copy path</b>.</>,
+      <>Bấm <b>Mở vị trí</b> để mở thư mục trong {FILE_MANAGER}, hoặc <b>Copy path</b>.</>,
     ],
   },
   {
@@ -87,7 +88,7 @@ const GUIDE: { id: string; title: string; steps: React.ReactNode[] }[] = [
       <>Mục <b>Dọn dẹp</b> → <b>Trùng lặp</b>: các resource có nội dung giống hệt hoặc cùng tên + phiên bản. Chọn <b>Gộp làm một</b> hoặc <b>Không phải trùng</b>.</>,
       <><b>Phiên bản</b>: các bản v1.0, v2.0… của cùng gói; <b>Đánh dấu bản cũ</b> để gắn status “Update Available”.</>,
       <><b>Đã có chưa?</b>: dán tên gói định tải để biết thư viện đã có thứ tương tự chưa.</>,
-      <>MRM không tự xóa file — muốn xóa bản thừa, dùng <b>Mở vị trí</b> rồi xóa trong Explorer.</>,
+      <>MRM không tự xóa file — muốn xóa bản thừa, dùng <b>Mở vị trí</b> rồi xóa trong {FILE_MANAGER}.</>,
     ],
   },
   {
@@ -134,7 +135,7 @@ const GUIDE: { id: string; title: string; steps: React.ReactNode[] }[] = [
     steps: [
       <>Mục <b>Media Browser</b> ở thanh bên liệt kê từng file <b>Âm thanh</b>, <b>Hình ảnh</b>, <b>Video</b> bên trong các gói. Chuỗi ảnh PNG (frame_0001…) được gom thành một mục.</>,
       <>Chọn file để xem trước: waveform cho âm thanh (bật <b>Tự nghe</b> để nghe ngay khi chọn), ảnh gốc, video (ProRes/HEVC tự tạo bản xem thử bằng GPU). Phím <kbd>↑</kbd> <kbd>↓</kbd> để duyệt, <kbd>Space</kbd> để nghe / dừng.</>,
-      <><b>Kéo file</b> (hoặc nút <b>Kéo vào app dựng</b>) thả thẳng vào timeline / bin của Premiere, CapCut, After Effects, Explorer… Chọn nhiều file bằng <kbd>Ctrl</kbd>/<kbd>Shift</kbd> để kéo cùng lúc. App đích chỉ sao chép hoặc tham chiếu — file gốc giữ nguyên.</>,
+      <><b>Kéo file</b> (hoặc nút <b>Kéo vào app dựng</b>) thả thẳng vào timeline / bin của Premiere, CapCut, After Effects, {FILE_MANAGER}… Chọn nhiều file bằng <kbd>Ctrl</kbd>/<kbd>Shift</kbd> để kéo cùng lúc. App đích chỉ sao chép hoặc tham chiếu — file gốc giữ nguyên.</>,
       <>Gắn <b>tag</b> và <b>★ yêu thích</b> cho từng file; dữ liệu dùng chung với plugin <b>HNH SFX Finder</b> trong DaVinci Resolve. Mục <b>Dùng gần đây</b> ghi lại file bạn đã kéo / sao chép.</>,
       <>Inspector của một resource có nút <b>File media</b> (vd: 1.622 âm thanh) để mở Media Browser chỉ với file của gói đó; ngược lại, file media có liên kết <b>Thuộc resource</b>.</>,
       <><b>AI cho file media</b> (khi bật AI offline): gõ theo ý nghĩa bằng tiếng Việt — vd <i>tiếng súng</i>, <i>vỗ tay</i>, <i>chuyển cảnh nhanh</i> — MRM tìm cả file không chứa đúng chữ đó (AK47.wav, Shotgun Pump…), sắp theo mức <b>Liên quan</b>.</>,
