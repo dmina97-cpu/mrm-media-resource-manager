@@ -62,7 +62,7 @@ jobs:
       # FFmpeg LGPL build từ mã nguồn (không có GPL/nonfree), tăng tốc bằng VideoToolbox/AudioToolbox của macOS
       - name: Cache FFmpeg
         id: ffcache
-        uses: actions/cache@v4
+        uses: actions/cache/restore@v4
         with:
           path: ffmpeg-out
           key: ffmpeg-${{ env.FFMPEG_VERSION }}-lgpl-arm64-macos11-v1
@@ -83,6 +83,14 @@ jobs:
             --extra-ldflags="-mmacosx-version-min=${MACOSX_DEPLOYMENT_TARGET}"
           make -j"$(sysctl -n hw.ncpu)"
           make install
+
+      # lưu ngay (kể cả khi các bước sau lỗi) để lần chạy lại không phải build FFmpeg nữa
+      - name: Lưu cache FFmpeg
+        if: steps.ffcache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: ffmpeg-out
+          key: ffmpeg-${{ env.FFMPEG_VERSION }}-lgpl-arm64-macos11-v1
 
       - name: FFmpeg sidecar
         run: |

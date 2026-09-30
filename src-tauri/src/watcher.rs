@@ -223,11 +223,15 @@ mod tests {
 
     #[test]
     fn maps_changed_path_to_candidate() {
-        let root = Path::new("D:\\Res");
-        assert_eq!(candidate_rels(root, Path::new("D:\\Res\\Pack\\sub\\a.wav"), 1), vec!["Pack"]);
-        assert_eq!(candidate_rels(root, Path::new("D:\\Res\\LUTs\\Kodak\\a.cube"), 2), vec!["LUTs\\Kodak"]);
-        assert_eq!(candidate_rels(root, Path::new("D:\\Res\\x.zip"), 2), vec!["x.zip"]);
-        assert!(candidate_rels(root, Path::new("D:\\Other\\x.zip"), 1).is_empty());
-        assert_eq!(candidate_rels(root, Path::new("D:\\Res\\A\\B\\c.wav"), 0), vec!["A", "A\\B", "A\\B\\c.wav"]);
+        // viết theo kiểu Windows, đổi sang kiểu Unix khi chạy test trên macOS
+        let n = |s: &str| if cfg!(windows) { s.to_string() } else { s.replacen("D:\\", "/", 1).replace('\\', "/") };
+        let np = |s: &str| PathBuf::from(n(s));
+        let nv = |v: &[&str]| v.iter().map(|s| n(s)).collect::<Vec<_>>();
+        let root = &np("D:\\Res");
+        assert_eq!(candidate_rels(root, &np("D:\\Res\\Pack\\sub\\a.wav"), 1), nv(&["Pack"]));
+        assert_eq!(candidate_rels(root, &np("D:\\Res\\LUTs\\Kodak\\a.cube"), 2), nv(&["LUTs\\Kodak"]));
+        assert_eq!(candidate_rels(root, &np("D:\\Res\\x.zip"), 2), nv(&["x.zip"]));
+        assert!(candidate_rels(root, &np("D:\\Other\\x.zip"), 1).is_empty());
+        assert_eq!(candidate_rels(root, &np("D:\\Res\\A\\B\\c.wav"), 0), nv(&["A", "A\\B", "A\\B\\c.wav"]));
     }
 }
