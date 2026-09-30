@@ -295,6 +295,14 @@ export interface FolderNode {
   has_children: boolean;
 }
 
+export interface FavoriteFolder {
+  id: number;
+  library_id: number;
+  path: string;
+  name: string;
+  count: number;
+}
+
 export interface CollectionInfo {
   id: number;
   name: string;
@@ -556,6 +564,9 @@ export const api = {
   visionStatus: () => invoke<VisionStatus>("vision_status"),
   assetFolders: (libraryId: number | null, parent: string, mediaType: MediaType | null) =>
     invoke<FolderNode[]>("asset_folders", { libraryId, parent, mediaType }),
+  listFavoriteFolders: (mediaType: MediaType | null) => invoke<FavoriteFolder[]>("list_favorite_folders", { mediaType }),
+  setFavoriteFolder: (libraryId: number, path: string, name: string, on: boolean) =>
+    invoke<void>("set_favorite_folder", { libraryId, path, name, on }),
   revealResource: (id: number) => invoke<void>("reveal_resource", { id }),
   resourcePaths: (id: number) => invoke<string[]>("resource_paths", { id }),
   listCollections: () => invoke<CollectionInfo[]>("list_collections"),

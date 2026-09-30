@@ -1804,3 +1804,61 @@ button.rel-row:hover {
   width: fit-content;
   align-self: flex-start;
 }
+
+/* ---------------------------------------------------------------- thư mục yêu thích */
+.ft-star,
+.chip-star {
+  flex: none;
+  display: inline-grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+  color: var(--muted);
+  opacity: 0;
+}
+.ft-row:hover .ft-star,
+.ft-star.on,
+.chip-star {
+  opacity: 1;
+}
+.ft-star:hover,
+.chip-star:hover {
+  color: #f5c542;
+}
+.ft-star.on,
+.chip-star.on {
+  color: #f5c542;
+}
+.chip-star {
+  width: 16px;
+  height: 16px;
+  margin-left: -4px;
+}
+.ft-favs {
+  margin-bottom: 8px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--line);
+}
+.ft-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+  padding: 2px 8px 4px;
+}
+.ft-fav {
+  padding-left: 8px;
+}
+.nav-subheading {
+  font-size: 10.5px;
+  color: var(--muted);
+  padding: 6px 12px 2px 32px;
+}
+.nav-item.nav-sub {
+  padding-left: 26px;
+}

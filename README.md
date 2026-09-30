@@ -72,7 +72,7 @@ Tải bản cài ở mục **[Releases](../../releases)**:
   - **AI nhìn ảnh/video** (mặc định tắt): tìm theo nội dung hình — *cô gái tóc dài*, *nền trời xanh*…
 - **Dọn dẹp** — tìm trùng lặp, gom các phiên bản của cùng một gói, kiểm tra "đã có chưa?" trước khi tải.
 - **An toàn dữ liệu** — tự backup database mỗi ngày, tự kiểm tra và khôi phục nếu database hỏng.
-- **Duyệt theo thư mục** — cây thư mục trong Media Browser, xem file của đúng thư mục bạn cần.
+- **Duyệt theo thư mục** — cây thư mục trong Media Browser, xem file của đúng thư mục bạn cần; ghim **thư mục yêu thích** để mở nhanh từ thanh bên.
 - **Menu chuột phải** — mở thư mục chứa, sao chép đường dẫn, yêu thích… ngay trên danh sách.
 - **Collections** — tự nhóm resource và file media theo ý bạn (vd: “SFX vlog”, “LUT điện ảnh”).
 - **Xem bên trong ZIP, RAR, 7Z** — duyệt file, nghe/xem thử, ảnh bìa tự động từ bên trong file nén.

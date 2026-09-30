@@ -117,6 +117,7 @@ const GUIDE: { id: string; title: string; steps: React.ReactNode[] }[] = [
       <><b>Theo dõi thư mục</b> (bật mặc định): thêm/sửa file trong library thì vài giây sau MRM tự cập nhật.</>,
       <>Database tự backup mỗi ngày (giữ 10 bản). Có thể <b>Backup ngay</b>, <b>Khôi phục</b>, <b>Export JSON</b> trong Settings.</>,
       <><b>Duyệt theo thư mục</b>: trong Media Browser bấm nút thư mục trên thanh công cụ để hiện cây thư mục — bấm một thư mục để chỉ xem file trong đó (gồm thư mục con).</>,
+      <><b>Thư mục yêu thích</b>: bấm ☆ bên cạnh thư mục trong cây thư mục để ghim — thư mục ghim hiện ở đầu cây và ở thanh bên (dưới Media yêu thích).</>,
       <><b>Chuột phải</b> vào resource hoặc file media để mở thư mục chứa, sao chép đường dẫn, yêu thích, xem cả thư mục…</>,
       <><b>Collections</b> (thanh bên): tự nhóm resource và file media theo ý bạn — vd “SFX vlog”. Thêm từ Inspector (ô <i>Thêm vào collection</i>) hoặc chọn nhiều mục cùng lúc.</>,
       <><b>Ảnh bìa</b>: bấm vào ảnh bìa rồi dán ảnh (<kbd>Ctrl</kbd>+<kbd>V</kbd>) hoặc bấm <b>Đổi ảnh bìa</b>; trong Media Browser bấm <b>Đặt làm ảnh bìa</b> trên một ảnh/video.</>,

@@ -145,6 +145,8 @@ pub fn run() {
             noteimg::set_cover_image,
             assets::set_cover_from_asset,
             assets::asset_folders,
+            assets::list_favorite_folders,
+            assets::set_favorite_folder,
             commands::reveal_resource,
             commands::resource_paths,
             exclude::get_scan_excludes,

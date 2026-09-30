@@ -3,7 +3,7 @@
 use rusqlite::{params, Connection, OptionalExtension};
 use std::path::Path;
 
-pub const SCHEMA_VERSION: i64 = 11;
+pub const SCHEMA_VERSION: i64 = 12;
 /// Phiên bản "hợp đồng" dữ liệu giữa MRM và plugin DaVinci (các view api_* và bảng asset_*).
 /// Tăng khi thay đổi làm plugin cũ đọc/ghi sai.
 pub const PLUGIN_CONTRACT: i64 = 1;
@@ -406,6 +406,20 @@ pub fn migrate(conn: &Connection) -> rusqlite::Result<()> {
              PRAGMA user_version = 11;",
         )?;
     }
+    if version < 12 {
+        // Thư mục yêu thích / ghim trong Media Browser
+        conn.execute_batch(
+            "CREATE TABLE favorite_folders (
+                 id         INTEGER PRIMARY KEY,
+                 library_id INTEGER NOT NULL REFERENCES libraries(id) ON DELETE CASCADE,
+                 path       TEXT NOT NULL,
+                 name       TEXT NOT NULL,
+                 created_at INTEGER NOT NULL,
+                 UNIQUE (library_id, path)
+             );
+             PRAGMA user_version = 12;",
+        )?;
+    }
     set_setting(conn, "plugin_contract", &PLUGIN_CONTRACT.to_string())?;
     Ok(())
 }
@@ -739,7 +753,7 @@ mod tests {
              DROP TABLE tag_rejections;
              DROP VIEW api_assets; DROP VIEW api_asset_tags; DROP VIEW api_libraries;
              DROP TABLE asset_tags; DROP TABLE asset_favorites; DROP TABLE asset_usage;
-             DROP TABLE asset_embeddings; DROP TABLE asset_captions;
+             DROP TABLE asset_embeddings; DROP TABLE asset_captions; DROP TABLE favorite_folders;
              DROP TABLE asset_smart_collections; DROP TABLE collection_assets; DROP TABLE media_assets;
              DROP TABLE app_presence; DROP TABLE app_requests;
              ALTER TABLE libraries DROP COLUMN media_types;

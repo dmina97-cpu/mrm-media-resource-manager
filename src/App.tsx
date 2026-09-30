@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { open, message } from "@tauri-apps/plugin-dialog";
-import { AiProgress, AiStatus, api, AssetCounts, CollectionInfo, Library, ListView, Presence, ResourceSummary, ScanProgress, SortKey, Tag } from "./api";
+import { AiProgress, AiStatus, api, AssetCounts, CollectionInfo, FavoriteFolder, Library, ListView, Presence, ResourceSummary, ScanProgress, SortKey, Tag } from "./api";
 import { errorText, formatNumber, formatSize } from "./format";
 import { Sidebar } from "./components/Sidebar";
 import { ResourceView } from "./components/ResourceView";
@@ -26,7 +26,16 @@ import "./styles-media.css";
 export type Route =
   | { page: "dashboard" }
   | { page: "resources"; view: ListView; tagId?: number; libraryId?: number; collectionId?: number }
-  | { page: "media"; view: MediaView; resourceId?: number; resourceName?: string; collectionId?: number; collectionName?: string }
+  | {
+      page: "media";
+      view: MediaView;
+      resourceId?: number;
+      resourceName?: string;
+      collectionId?: number;
+      collectionName?: string;
+      /** mở sẵn một thư mục (thư mục yêu thích ở thanh bên) */
+      folder?: { libraryId: number; path: string; name: string };
+    }
   | { page: "matches" }
   | { page: "cleanup" }
   | { page: "rules" }
@@ -109,6 +118,11 @@ export default function App() {
   const [onboarding, setOnboarding] = useState(false);
   const [collections, setCollections] = useState<CollectionInfo[]>([]);
   const [resMenu, setResMenu] = useState<MenuState | null>(null);
+  const [favFolders, setFavFolders] = useState<FavoriteFolder[]>([]);
+  const refreshFavFolders = useCallback(() => {
+    api.listFavoriteFolders(null).then(setFavFolders).catch(() => undefined);
+  }, []);
+  useEffect(refreshFavFolders, [refreshFavFolders, mediaKey]);
   const refreshCollections = useCallback(() => {
     api.listCollections().then(setCollections).catch(() => undefined);
   }, []);
@@ -393,6 +407,7 @@ export default function App() {
         mediaCounts={mediaCounts}
         pluginActive={!!presence?.plugin_active}
         collections={collections}
+        favFolders={favFolders}
         onNewCollection={async () => {
           const id = await promptNewCollection(toast);
           if (id != null) {
@@ -608,6 +623,9 @@ export default function App() {
             resource={route.resourceId ? { id: route.resourceId, name: route.resourceName ?? "" } : null}
             onClearResource={() => setRoute({ page: "media", view: route.view, collectionId: route.collectionId, collectionName: route.collectionName })}
             collection={route.collectionId ? { id: route.collectionId, name: route.collectionName ?? "" } : null}
+            initialFolder={route.folder ?? null}
+            favFolders={favFolders}
+            onFavFoldersChanged={refreshFavFolders}
             onClearCollection={() => setRoute({ page: "media", view: route.view, resourceId: route.resourceId, resourceName: route.resourceName })}
             libraries={libraries}
             reloadKey={mediaKey}

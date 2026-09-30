@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { convertFileSrc } from "@tauri-apps/api/core";
 import { startDrag } from "@crabnebula/tauri-plugin-drag";
-import { api, AssetAiStatus, AssetDetail, AssetFacets, AssetItem, AssetQuery, AssetSort, FolderNode, Library, MediaType, Presence, VisionStatus } from "../api";
+import { api, AssetAiStatus, AssetDetail, AssetFacets, AssetItem, AssetQuery, AssetSort, FavoriteFolder, FolderNode, Library, MediaType, Presence, VisionStatus } from "../api";
 import { ContextMenu, MenuItem, MenuState } from "./ContextMenu";
 import { errorText, formatDateTime, formatNumber, formatSize } from "../format";
 import { Icon } from "./Icon";
@@ -200,6 +200,9 @@ interface Props {
   onClearResource: () => void;
   collection: { id: number; name: string } | null;
   onClearCollection: () => void;
+  initialFolder: { libraryId: number; path: string; name: string } | null;
+  favFolders: FavoriteFolder[];
+  onFavFoldersChanged: () => void;
   libraries: Library[];
   reloadKey: number;
   presence: Presence | null;
@@ -228,7 +231,7 @@ export function MediaBrowser(props: Props) {
   return <Browser {...props} />;
 }
 
-function Browser({ view, resource, onClearResource, collection, onClearCollection, libraries, reloadKey, pendingMeta, aiReady, onChanged, onOpenResource, toast }: Props) {
+function Browser({ view, resource, onClearResource, collection, onClearCollection, initialFolder, favFolders, onFavFoldersChanged, libraries, reloadKey, pendingMeta, aiReady, onChanged, onOpenResource, toast }: Props) {
   const mediaType: MediaType | null = view === "favorites" || view === "recent" ? null : view;
   const [text, setText] = useState("");
   const [debounced, setDebounced] = useState("");
@@ -282,6 +285,25 @@ function Browser({ view, resource, onClearResource, collection, onClearCollectio
   useEffect(() => savePref(`mb-layout-${view}`, layout), [layout, view]);
   useEffect(() => savePref("mb-autoplay", autoPlay), [autoPlay]);
   useEffect(() => savePref("mb-folders", showFolders), [showFolders]);
+  // mở từ "Thư mục yêu thích" ở thanh bên
+  useEffect(() => {
+    if (initialFolder) {
+      setFolder(initialFolder);
+      setShowFolders(true);
+    }
+  }, [initialFolder?.libraryId, initialFolder?.path]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const isFav = (libraryId: number, path: string) => favFolders.some((f) => f.library_id === libraryId && f.path === path);
+  const toggleFavFolder = async (f: { libraryId: number; path: string; name: string }) => {
+    const on = !isFav(f.libraryId, f.path);
+    try {
+      await api.setFavoriteFolder(f.libraryId, f.path, f.name, on);
+      toast(on ? `Đã ghim thư mục “${f.name}”` : `Đã bỏ ghim “${f.name}”`);
+      onFavFoldersChanged();
+    } catch (err) {
+      toast(errorText(err), "err");
+    }
+  };
   useEffect(() => {
     const t = setTimeout(() => setDebounced(text.trim()), aiReady ? 300 : 180);
     return () => clearTimeout(t);
@@ -522,6 +544,12 @@ function Browser({ view, resource, onClearResource, collection, onClearCollectio
       "sep",
       { label: it.favorite ? "Bỏ yêu thích" : "Yêu thích", icon: "star", onClick: () => toggleFav(ids, !it.favorite) },
       { label: "Xem cả thư mục này", icon: "folder", onClick: () => openFolderOf(it) },
+      (() => {
+        const path = folderOf(it.rel_path);
+        const name = path.split(/[\\/]/).pop() || libraries.find((l) => l.id === it.library_id)?.name || "Library";
+        const fav = isFav(it.library_id, path);
+        return { label: fav ? "Bỏ ghim thư mục chứa file" : "Ghim thư mục chứa file", icon: "star", onClick: () => toggleFavFolder({ libraryId: it.library_id, path, name }) };
+      })(),
     ];
     if (it.media_type !== "audio" && it.resource_id != null && it.available) {
       items.push({
@@ -548,6 +576,13 @@ function Browser({ view, resource, onClearResource, collection, onClearCollectio
           <h1>{title}</h1>
           {folder && (
             <span className="chip mb-res-chip" title={folder.path || "Cả library"}>
+              <button
+                className={`chip-star ${isFav(folder.libraryId, folder.path) ? "on" : ""}`}
+                onClick={() => toggleFavFolder(folder)}
+                title={isFav(folder.libraryId, folder.path) ? "Bỏ ghim thư mục" : "Ghim vào Thư mục yêu thích"}
+              >
+                <Icon name="star" size={11} filled={isFav(folder.libraryId, folder.path)} />
+              </button>
               <Icon name="folder" size={11} /> {folder.name}
               <button className="chip-x" onClick={() => setFolder(null)} aria-label="Bỏ lọc thư mục">
                 <Icon name="x" size={10} />
@@ -711,7 +746,15 @@ function Browser({ view, resource, onClearResource, collection, onClearCollectio
 
       <div className={`mb-body ${showFolders ? "with-folders" : ""}`}>
         {showFolders && (
-          <FolderTree mediaType={mediaType} selected={folder} onSelect={setFolder} reloadKey={reloadKey} />
+          <FolderTree
+            mediaType={mediaType}
+            selected={folder}
+            onSelect={setFolder}
+            reloadKey={reloadKey}
+            favFolders={favFolders}
+            isFav={isFav}
+            onToggleFav={toggleFavFolder}
+          />
         )}
         <div
           className={`mb-results mb-${layout}`}
@@ -1322,12 +1365,26 @@ function FolderTree({
   selected,
   onSelect,
   reloadKey,
+  favFolders,
+  isFav,
+  onToggleFav,
 }: {
   mediaType: MediaType | null;
   selected: FolderSel;
   onSelect: (f: FolderSel) => void;
   reloadKey: number;
+  favFolders: FavoriteFolder[];
+  isFav: (libraryId: number, path: string) => boolean;
+  onToggleFav: (f: { libraryId: number; path: string; name: string }) => void;
 }) {
+  // số file của thư mục yêu thích theo tab đang xem
+  const [favCounts, setFavCounts] = useState<Record<number, number>>({});
+  useEffect(() => {
+    api
+      .listFavoriteFolders(mediaType)
+      .then((l) => setFavCounts(Object.fromEntries(l.map((f) => [f.id, f.count]))))
+      .catch(() => undefined);
+  }, [mediaType, favFolders, reloadKey]);
   const [roots, setRoots] = useState<FolderNode[] | null>(null);
   const [children, setChildren] = useState<Record<string, FolderNode[] | "loading">>({});
   const key = (n: { library_id: number; path: string }) => `${n.library_id}|${n.path}`;
@@ -1384,6 +1441,13 @@ function FolderTree({
               <span className="truncate">{n.name}</span>
               <span className="ft-count">{formatNumber(n.count)}</span>
             </button>
+            <button
+              className={`ft-star ${isFav(n.library_id, n.path) ? "on" : ""}`}
+              onClick={() => onToggleFav({ libraryId: n.library_id, path: n.path, name: n.name })}
+              title={isFav(n.library_id, n.path) ? "Bỏ ghim" : "Ghim vào Thư mục yêu thích"}
+            >
+              <Icon name="star" size={11} filled={isFav(n.library_id, n.path)} />
+            </button>
           </div>
           {open === "loading" && (
             <div className="ft-loading" style={{ paddingLeft: 26 + depth * 14 }}>
@@ -1397,6 +1461,28 @@ function FolderTree({
 
   return (
     <nav className="mb-folders" aria-label="Thư mục">
+      {favFolders.length > 0 && (
+        <div className="ft-favs">
+          <div className="ft-head">
+            <Icon name="star" size={11} /> Yêu thích
+          </div>
+          {favFolders.map((f) => {
+            const on = selected && selected.libraryId === f.library_id && selected.path === f.path;
+            return (
+              <div key={f.id} className={`ft-row ${on ? "on" : ""}`}>
+                <button className="ft-label ft-fav" onClick={() => onSelect({ libraryId: f.library_id, path: f.path, name: f.name })} title={f.path || f.name}>
+                  <Icon name="folder" size={13} />
+                  <span className="truncate">{f.name}</span>
+                  <span className="ft-count">{formatNumber(favCounts[f.id] ?? f.count)}</span>
+                </button>
+                <button className="ft-star on" onClick={() => onToggleFav({ libraryId: f.library_id, path: f.path, name: f.name })} title="Bỏ ghim">
+                  <Icon name="star" size={11} filled />
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      )}
       <button className={`ft-row ft-all ${selected ? "" : "on"}`} onClick={() => onSelect(null)}>
         <Icon name="all" size={13} /> Tất cả thư mục
       </button>

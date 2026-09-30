@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { AssetCounts, CollectionInfo, KIND_LABEL, Library, Tag, TagKind } from "../api";
+import { AssetCounts, CollectionInfo, FavoriteFolder, KIND_LABEL, Library, Tag, TagKind } from "../api";
 import { Icon } from "./Icon";
 import { AppLogo } from "./AppLogo";
 import type { Route } from "../App";
@@ -13,12 +13,13 @@ interface Props {
   mediaCounts: AssetCounts | null;
   pluginActive: boolean;
   collections: CollectionInfo[];
+  favFolders: FavoriteFolder[];
   onNewCollection: () => void;
 }
 
 const GROUPS: TagKind[] = ["app", "type", "function", "personal", "status"];
 
-export function Sidebar({ route, onNavigate, tags, libraries, counts, mediaCounts, pluginActive, collections, onNewCollection }: Props) {
+export function Sidebar({ route, onNavigate, tags, libraries, counts, mediaCounts, pluginActive, collections, favFolders, onNewCollection }: Props) {
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({ personal: false, status: true });
   const [showEmpty, setShowEmpty] = useState<Record<string, boolean>>({});
 
@@ -65,6 +66,19 @@ export function Sidebar({ route, onNavigate, tags, libraries, counts, mediaCount
             <Item r={{ page: "media", view: "video" }} icon="film" label="Video" count={mediaCounts.video} />
             <Item r={{ page: "media", view: "favorites" }} icon="star" label="Media yêu thích" count={mediaCounts.favorites} />
             <Item r={{ page: "media", view: "recent" }} icon="refresh" label="Dùng gần đây" count={mediaCounts.recent} />
+            {favFolders.length > 0 && <div className="nav-subheading">Thư mục yêu thích</div>}
+            {favFolders.map((f) => {
+              const keepView = route.page === "media" && (route.view === "image" || route.view === "video") ? route.view : ("audio" as const);
+              const r = { page: "media" as const, view: keepView, folder: { libraryId: f.library_id, path: f.path, name: f.name } };
+              const active = route.page === "media" && route.folder?.libraryId === f.library_id && route.folder?.path === f.path;
+              return (
+                <button key={f.id} className={`nav-item nav-sub ${active ? "active" : ""}`} onClick={() => onNavigate(r)} title={f.path || f.name}>
+                  <Icon name="folder" size={14} />
+                  <span className="nav-label">{f.name}</span>
+                  {f.count > 0 && <span className="nav-count">{f.count}</span>}
+                </button>
+              );
+            })}
           </div>
         )}
 

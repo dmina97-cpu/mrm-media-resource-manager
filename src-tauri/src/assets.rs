@@ -683,6 +683,59 @@ pub fn asset_folders(state: State<AppState>, library_id: Option<i64>, parent: St
     Ok(out)
 }
 
+#[derive(Serialize)]
+pub struct FavoriteFolder {
+    id: i64,
+    library_id: i64,
+    path: String,
+    name: String,
+    /// số file (theo loại media nếu có) trong thư mục, gồm thư mục con
+    count: i64,
+}
+
+pub fn favorite_folders(conn: &Connection, media_type: &str) -> Res<Vec<FavoriteFolder>> {
+    let mut s = conn
+        .prepare(
+            "SELECT f.id, f.library_id, f.path, f.name,
+                    (SELECT count(*) FROM media_assets a WHERE a.library_id = f.library_id AND a.available = 1
+                       AND (?1 = '' OR a.media_type = ?1)
+                       AND (f.path = '' OR a.rel_path LIKE replace(replace(replace(f.path, '!', '!!'), '%', '!%'), '_', '!_') || '\\%' ESCAPE '!'))
+             FROM favorite_folders f ORDER BY f.name COLLATE NOCASE",
+        )
+        .map_err(e)?;
+    let v = s
+        .query_map([media_type], |r| Ok(FavoriteFolder { id: r.get(0)?, library_id: r.get(1)?, path: r.get(2)?, name: r.get(3)?, count: r.get(4)? }))
+        .map_err(e)?
+        .flatten()
+        .collect();
+    Ok(v)
+}
+
+#[tauri::command]
+pub fn list_favorite_folders(state: State<AppState>, media_type: Option<String>) -> Res<Vec<FavoriteFolder>> {
+    let mt = media_type.filter(|t| matches!(t.as_str(), "audio" | "image" | "video")).unwrap_or_default();
+    favorite_folders(&state.db.lock().unwrap(), &mt)
+}
+
+/// Ghim / bỏ ghim một thư mục (đường dẫn trong library; "" = cả library).
+#[tauri::command]
+pub fn set_favorite_folder(state: State<AppState>, library_id: i64, path: String, name: String, on: bool) -> Res<()> {
+    let conn = state.db.lock().unwrap();
+    let path = path.replace('/', "\\").trim_matches('\\').to_string();
+    if on {
+        let name = if name.trim().is_empty() { path.rsplit('\\').next().unwrap_or("Thư mục").to_string() } else { name.trim().to_string() };
+        conn.execute(
+            "INSERT INTO favorite_folders (library_id, path, name, created_at) VALUES (?1, ?2, ?3, ?4)
+             ON CONFLICT(library_id, path) DO UPDATE SET name = excluded.name",
+            params![library_id, path, name, db::now()],
+        )
+        .map_err(e)?;
+    } else {
+        conn.execute("DELETE FROM favorite_folders WHERE library_id = ?1 AND path = ?2", params![library_id, path]).map_err(e)?;
+    }
+    Ok(())
+}
+
 /// Ảnh nhỏ hiển thị dưới con trỏ khi kéo file ra app khác.
 #[tauri::command]
 pub fn drag_icon(state: State<AppState>) -> Res<String> {
@@ -764,6 +817,11 @@ mod tests {
         .unwrap();
         let f = q(AssetQuery { library_id: Some(1), folder: Some("SFX".into()), ..Default::default() });
         assert_eq!(f.items.iter().map(|i| i.id).collect::<std::collections::BTreeSet<_>>(), [1, 2, 10].into_iter().collect());
+
+        // thư mục yêu thích: đếm gồm thư mục con, không nhầm "SFX2"
+        conn.execute("INSERT INTO favorite_folders (library_id, path, name, created_at) VALUES (1, 'SFX', 'SFX', 0)", []).unwrap();
+        let fav = favorite_folders(&conn, "audio").unwrap();
+        assert_eq!((fav.len(), fav[0].count), (1, 3), "SFX: whoosh_fast, impact, Deep/y — không tính SFX2/x");
 
         let d = detail(&conn, 2).unwrap();
         assert_eq!(d.path, "D:\\Lib\\SFX\\impact 100%.mp3");
