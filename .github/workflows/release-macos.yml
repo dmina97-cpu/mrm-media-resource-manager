@@ -162,6 +162,11 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          # release do workflow Windows tạo khi đẩy tag — chờ tối đa 40 phút nếu chạy song song
+          for i in $(seq 1 80); do
+            gh release view "${{ inputs.tag }}" > /dev/null 2>&1 && break
+            echo "Chờ release ${{ inputs.tag }}… ($i)"; sleep 30
+          done
           gh release view "${{ inputs.tag }}" > /dev/null
           # chỉ thêm/thay 2 file Mac — file Windows giữ nguyên
           gh release upload "${{ inputs.tag }}" "${{ steps.files.outputs.dmg }}" "${{ steps.files.outputs.zip }}" --clobber
