@@ -161,11 +161,7 @@ pub fn list_libraries(app: AppHandle, state: State<AppState>) -> Res<Vec<Library
 #[tauri::command]
 pub fn add_library(app: AppHandle, state: State<AppState>, path: String, name: Option<String>, scan_depth: Option<i64>) -> Res<LibraryInfo> {
     let p = Path::new(&path);
-    if !p.is_dir() {
-        return Err("Thư mục không tồn tại".into());
-    }
-    let path = p.to_string_lossy().trim_end_matches(['\\', '/']).to_string();
-    let path = if path.ends_with(':') { format!("{path}\\") } else { path };
+    let path = lib_path(&path)?;
     let name = name
         .filter(|n| !n.trim().is_empty())
         .unwrap_or_else(|| p.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_else(|| path.clone()));
@@ -191,6 +187,117 @@ pub fn update_library(state: State<AppState>, id: i64, name: String, scan_depth:
     let conn = state.db.lock().unwrap();
     conn.execute("UPDATE libraries SET name = ?1, scan_depth = ?2 WHERE id = ?3", params![name, scan_depth.clamp(0, 5), id]).map_err(e)?;
     Ok(())
+}
+
+/// Chuẩn hóa đường dẫn thư mục gốc của library (bỏ dấu phân cách cuối, giữ "D:\").
+fn lib_path(path: &str) -> Res<String> {
+    let p = Path::new(path);
+    if !p.is_dir() {
+        return Err("Thư mục không tồn tại".into());
+    }
+    let path = p.to_string_lossy().trim_end_matches(['\\', '/']).to_string();
+    Ok(if path.ends_with(':') { format!("{path}\\") } else { path })
+}
+
+/// Những gì sẽ mất khi gỡ library — để cảnh báo người dùng trước.
+#[derive(Serialize)]
+pub struct LibraryImpact {
+    resources: i64,
+    /// resource chỉ nằm trong library này và có tag / ghi chú / yêu thích / collection / ảnh bìa tự chọn
+    curated_resources: i64,
+    /// resource còn nguồn ở library khác -> vẫn giữ, chỉ mất nguồn này
+    shared_resources: i64,
+    media: i64,
+    /// file media có tag hoặc yêu thích
+    curated_media: i64,
+}
+
+#[tauri::command]
+pub fn library_impact(state: State<AppState>, id: i64) -> Res<LibraryImpact> {
+    let conn = state.db.lock().unwrap();
+    let only_here = "r.id IN (SELECT resource_id FROM resource_sources WHERE library_id = ?1)
+                     AND NOT EXISTS (SELECT 1 FROM resource_sources s WHERE s.resource_id = r.id AND s.library_id <> ?1)";
+    let n = |sql: &str| conn.query_row(sql, [id], |r| r.get::<_, i64>(0)).map_err(e);
+    Ok(LibraryImpact {
+        resources: n(&format!("SELECT count(*) FROM resources r WHERE {only_here}"))?,
+        curated_resources: n(&format!(
+            "SELECT count(*) FROM resources r WHERE {only_here} AND (
+                trim(r.notes) <> '' OR r.favorite <> 0 OR r.cover_user <> 0
+                OR EXISTS (SELECT 1 FROM resource_tags t WHERE t.resource_id = r.id AND t.source IS NULL)
+                OR EXISTS (SELECT 1 FROM collection_resources c WHERE c.resource_id = r.id)
+                OR EXISTS (SELECT 1 FROM note_images i WHERE i.resource_id = r.id))"
+        ))?,
+        shared_resources: n(
+            "SELECT count(DISTINCT s.resource_id) FROM resource_sources s
+             WHERE s.library_id = ?1 AND EXISTS (SELECT 1 FROM resource_sources o WHERE o.resource_id = s.resource_id AND o.library_id <> ?1)",
+        )?,
+        media: n("SELECT count(*) FROM media_assets WHERE library_id = ?1")?,
+        curated_media: n(
+            "SELECT count(*) FROM media_assets a WHERE a.library_id = ?1 AND (
+                EXISTS (SELECT 1 FROM asset_tags t WHERE t.asset_id = a.id) OR EXISTS (SELECT 1 FROM asset_favorites f WHERE f.asset_id = a.id))",
+        )?,
+    })
+}
+
+#[derive(Serialize)]
+pub struct RelinkPreview {
+    path: String,
+    /// số mục mẫu đã kiểm tra / số mục tìm thấy ở thư mục mới
+    checked: i64,
+    found: i64,
+}
+
+/// Kiểm tra thư mục mới có đúng là library này (đã di chuyển / đổi tên) không: thử một mẫu đường dẫn đã biết.
+#[tauri::command]
+pub fn preview_relink_library(state: State<AppState>, id: i64, path: String) -> Res<RelinkPreview> {
+    let path = lib_path(&path)?;
+    let conn = state.db.lock().unwrap();
+    relink_guard(&conn, id, &path)?;
+    let mut rels = collect(&conn, "SELECT rel_path FROM resource_sources WHERE library_id = ?1 ORDER BY random() LIMIT 150", [id], |r| r.get::<_, String>(0))?;
+    rels.extend(collect(&conn, "SELECT rel_path FROM media_assets WHERE library_id = ?1 ORDER BY random() LIMIT 150", [id], |r| r.get::<_, String>(0))?);
+    drop(conn);
+    let root = Path::new(&path);
+    let found = rels.iter().filter(|r| root.join(r).exists()).count() as i64;
+    Ok(RelinkPreview { path, checked: rels.len() as i64, found })
+}
+
+fn relink_guard(conn: &Connection, id: i64, path: &str) -> Res<()> {
+    let other: Option<String> = conn
+        .query_row("SELECT name FROM libraries WHERE path = ?1 COLLATE NOCASE AND id <> ?2", params![path, id], |r| r.get(0))
+        .optional()
+        .map_err(e)?;
+    match other {
+        Some(n) => Err(format!("Thư mục này đang là library \"{n}\"")),
+        None => Ok(()),
+    }
+}
+
+/// Đổi đường dẫn gốc của library (thư mục đã di chuyển / đổi tên / sang ổ khác).
+/// Mọi đường dẫn bên trong là tương đối -> giữ nguyên tag, ghi chú, yêu thích, ảnh bìa, collection.
+#[tauri::command]
+pub fn relink_library(app: AppHandle, state: State<AppState>, id: i64, path: String) -> Res<LibraryInfo> {
+    let new_path = lib_path(&path)?;
+    let conn = state.db.lock().unwrap();
+    relink_guard(&conn, id, &new_path)?;
+    let (old_name, old_path): (String, String) =
+        conn.query_row("SELECT name, path FROM libraries WHERE id = ?1", [id], |r| Ok((r.get(0)?, r.get(1)?))).map_err(e)?;
+    backup_to(&conn, &backup_dir(&state), "before-relink")?;
+    let base = |p: &str| Path::new(p).file_name().map(|n| n.to_string_lossy().to_string());
+    // tên tự đặt theo thư mục cũ -> đổi theo thư mục mới; tên người dùng tự đặt -> giữ
+    let name = match (base(&old_path), base(&new_path)) {
+        (Some(o), Some(n)) if o == old_name => n,
+        _ => old_name,
+    };
+    conn.execute(
+        "UPDATE libraries SET path = ?1, name = ?2, volume_serial = ?3 WHERE id = ?4",
+        params![new_path, name, scanner::volume_serial(Path::new(&new_path)).map(|s| s as i64), id],
+    )
+    .map_err(e)?;
+    let _ = app.asset_protocol_scope().allow_directory(&new_path, true);
+    let info = library_info(&conn, id);
+    drop(conn);
+    crate::watcher::refresh(&app);
+    info
 }
 
 /// Chỉ xóa metadata trong MRM — file thật trên ổ đĩa giữ nguyên.

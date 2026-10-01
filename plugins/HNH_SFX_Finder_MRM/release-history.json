@@ -1,5 +1,9 @@
 [
   {
+    "version": "0.12.3",
+    "notes": "Bấm gỡ thư mục giờ mở hướng dẫn thay vì báo lỗi: khi dùng chung với MRM, chỉ cách giữ tag và yêu thích (MRM 0.12.0 có Đổi đường dẫn thư viện; sắp xếp lại bên trong chỉ cần Quét lại; bỏ một loại file dùng Loại quét). Khi chạy độc lập có nút Nối lại ngay trong hộp thoại. Thông báo lỗi gọn hơn. Hỗ trợ Mac chip M."
+  },
+  {
     "version": "0.12.2",
     "notes": "Thư mục yêu thích: bấm ☆ cạnh thư mục trong cây thư mục để ghim; thư mục đã ghim hiện ở mục ★ Yêu thích phía trên cây. Khi có MRM 0.11.0 trở lên, danh sách thư mục yêu thích dùng chung với Media Browser của MRM."
   },

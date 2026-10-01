@@ -30,6 +30,10 @@ const GUIDE: { id: string; title: string; steps: React.ReactNode[] }[] = [
       <>Nhận sai? Trong Inspector → Sources bấm <b>Tách nhỏ</b> (thư mục chứa nhiều gói) hoặc <b>Gộp thư mục cha</b> (một gói bị chia vụn). MRM ghi nhớ lựa chọn và giữ lại tag/notes khi nhóm lại.</>,
       <>Tên thư mục chứa được dùng để gợi ý phân loại: gói trong <code>Luts</code> → LUT, trong <code>DR plugin</code> → DaVinci Resolve, trong <code>Preset LR</code> → Lightroom.</>,
       <>Có thể thêm nhiều library ở nhiều ổ. Bấm <b>Quét</b> trên thanh công cụ để quét lại tất cả.</>,
+      <>
+        Sắp xếp lại thư mục mà không mất tag: di chuyển / đổi tên thư mục gốc hoặc sang ổ khác → <b>Đổi đường dẫn</b> ở library đó; sắp xếp lại bên trong → chỉ cần <b>Quét</b> (file
+        di chuyển tự nối lại); gom sang library khác → thêm và quét library mới <b>trước</b> rồi mới gỡ library cũ.
+      </>,
     ],
   },
   {

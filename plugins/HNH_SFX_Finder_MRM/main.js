@@ -11,7 +11,7 @@ const PLUGIN_ID = (() => {
 const AUDIO_EXTS = new Set(['.wav', '.mp3', '.flac', '.aiff', '.aif', '.m4a', '.aac', '.ogg']);
 const INDEX_VERSION = 3;
 const library = require('./library');
-const PLUGIN_VERSION = '0.12.2';
+const PLUGIN_VERSION = '0.12.3';
 const { Portable } = require('./portable');
 
 let WorkflowIntegration = null;

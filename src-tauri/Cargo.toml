@@ -1,6 +1,6 @@
 [package]
 name = "nink-vault"
-version = "0.11.0"
+version = "0.12.0"
 description = "MRM - Media Resource Manager"
 authors = ["Phạm Nam"]
 edition = "2021"

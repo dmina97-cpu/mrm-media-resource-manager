@@ -60,3 +60,8 @@ footer { display:grid;grid-template-columns:minmax(260px,1fr) auto; align-items:
 .folder-fav-head{font-size:10px;color:var(--muted);padding:2px 5px 4px;letter-spacing:.03em}
 .folder-fav-row{padding-left:0}
 .folder-select:disabled{opacity:.5;cursor:default}
+
+#libraryRemoveDialog{width:min(560px,92vw);background:var(--panel);color:var(--text);border:1px solid var(--line);border-radius:10px;padding:22px;max-height:90vh;overflow:auto}#libraryRemoveDialog::backdrop{background:#000a}#libraryRemoveDialog h2{font-size:18px;margin-top:0}#libraryRemovePath{overflow-wrap:anywhere;color:var(--muted);font-size:12px}
+#libraryRemoveBody{font-size:13px;line-height:1.5}#libraryRemoveBody .lr-lead{background:#f0a44b1f;color:#f3c48a;border-radius:7px;padding:10px 12px}#libraryRemoveBody .lr-q{margin:14px 0 6px;color:var(--muted);font-size:12px}
+.lr-opts{list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:6px}.lr-opts li{background:var(--panel2);border:1px solid var(--line);border-radius:7px;padding:8px 10px;display:flex;flex-direction:column;gap:2px}.lr-opts span{color:var(--muted)}
+.lr-err{color:#ff8a8a}#libraryRemoveActions{flex-wrap:wrap}button.danger{background:#5a1f24;color:#ffb3b3;border:1px solid #8a3038}button.danger:hover{background:#6e252c}

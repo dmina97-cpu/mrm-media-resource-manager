@@ -23,7 +23,7 @@ try {
   if ((Get-FileHash -LiteralPath (Join-Path $PSScriptRoot 'WorkflowIntegration.node')).Hash -ne (Get-FileHash -LiteralPath (Join-Path $pluginTarget 'WorkflowIntegration.node')).Hash) { throw 'Installed bridge checksum mismatch.' }
   $newVersion = (Get-Content -LiteralPath (Join-Path $PSScriptRoot 'package.json') -Raw | ConvertFrom-Json).version
   @{ from = $previousVersion; to = $newVersion; installedAt = (Get-Date).ToString('o') } | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $pluginTarget 'install-receipt.json') -Encoding UTF8
-  Write-Host 'HNH SFX Finder (MRM) 0.12.2 installed beside the original plugin. Works standalone, or shares data with MRM when MRM is installed.'
+  Write-Host 'HNH SFX Finder (MRM) 0.12.3 installed beside the original plugin. Works standalone, or shares data with MRM when MRM is installed.'
   Write-Host 'Open Resolve Studio 20.2 > Workspace > Workflow Integrations > HNH SFX Finder (MRM).'
   exit 0
 } catch {

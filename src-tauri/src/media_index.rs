@@ -245,6 +245,12 @@ pub fn index_library(db: &Mutex<Connection>, lib_id: i64, skip_dir: Option<&Path
     }
     let now = db::now();
     let mut relinked_ids: HashSet<i64> = HashSet::new();
+    // File chuyển từ library khác sang (vd gom thư mục): nối lại để giữ tag / yêu thích
+    let mut foreign = if found.iter().any(|f| f.size > 0 && !existing.contains_key(&f.rel)) {
+        foreign_candidates(&db.lock().unwrap(), lib_id).map_err(err)?
+    } else {
+        HashMap::new()
+    };
     for chunk in found.chunks(BATCH) {
         let mut conn = db.lock().unwrap();
         let tx = conn.transaction().map_err(err)?;
@@ -291,6 +297,15 @@ pub fn index_library(db: &Mutex<Connection>, lib_id: i64, skip_dir: Option<&Path
                         tx.execute("DELETE FROM asset_embeddings WHERE asset_id = ?1", [id]).map_err(err)?;
                         relinked_ids.insert(id);
                         res.relinked += 1;
+                    } else if let Some(id) = (f.size > 0).then(|| take_foreign(&mut foreign, &key, &f.filename)).flatten() {
+                        tx.execute(
+                            "UPDATE media_assets SET library_id = ?1, rel_path = ?2, filename = ?3, last_seen = ?4, available = 1, resource_id = ?5,
+                             seq_pattern = ?6, seq_start = ?7, seq_end = ?8, seq_count = ?9 WHERE id = ?10",
+                            params![lib_id, f.rel, f.filename, now, rid, pat, st, en, cnt, id],
+                        )
+                        .map_err(err)?;
+                        tx.execute("DELETE FROM asset_embeddings WHERE asset_id = ?1", [id]).map_err(err)?;
+                        res.relinked += 1;
                     } else {
                         tx.execute(
                             "INSERT INTO media_assets (uid, library_id, resource_id, media_type, rel_path, filename, ext, size, modified_ms,
@@ -320,6 +335,45 @@ pub fn index_library(db: &Mutex<Connection>, lib_id: i64, skip_dir: Option<&Path
         }
     }
     Ok(res)
+}
+
+/// Asset ở library khác, khóa theo (size, mtime, ext): (id, gốc library, rel_path, tên file).
+type Foreign = HashMap<(i64, i64, String), Vec<(i64, String, String, String)>>;
+
+fn foreign_candidates(conn: &Connection, lib_id: i64) -> rusqlite::Result<Foreign> {
+    let mut s = conn.prepare(
+        "SELECT a.id, l.path, a.rel_path, a.filename, a.size, a.modified_ms, a.ext
+         FROM media_assets a JOIN libraries l ON l.id = a.library_id
+         WHERE a.library_id <> ?1 AND a.size > 0",
+    )?;
+    let mut map: Foreign = HashMap::new();
+    let rows = s.query_map([lib_id], |r| {
+        Ok(((r.get::<_, i64>(4)?, r.get::<_, i64>(5)?, r.get::<_, String>(6)?), (r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?)))
+    })?;
+    for row in rows {
+        let (k, v) = row?;
+        map.entry(k).or_default().push(v);
+    }
+    Ok(map)
+}
+
+/// Chọn asset ở library khác mà file mới này là bản đã di chuyển tới.
+/// An toàn: chỉ nhận khi ổ của library cũ đang kết nối và file cũ thật sự không còn
+/// (bản sao còn nguyên, hoặc ổ ngoài đang rút -> không lấy metadata).
+fn take_foreign(map: &mut Foreign, key: &(i64, i64, String), filename: &str) -> Option<i64> {
+    let v = map.get_mut(key)?;
+    let moved = |(_, root, rel, _): &(i64, String, String, String)| {
+        let root = Path::new(root);
+        root.is_dir() && !root.join(rel).exists()
+    };
+    let same_name: Vec<usize> = (0..v.len()).filter(|&i| v[i].3.eq_ignore_ascii_case(filename) && moved(&v[i])).collect();
+    let pos = match same_name.first() {
+        Some(&i) => i,
+        // khác tên: chỉ nhận khi không mơ hồ (đúng 1 ứng viên)
+        None if v.len() == 1 && moved(&v[0]) => 0,
+        None => return None,
+    };
+    Some(v.remove(pos).0)
 }
 
 // ================================================================ metadata (chạy nền)
@@ -524,6 +578,43 @@ mod tests {
         v.extend(data.to_le_bytes());
         v.extend(vec![0u8; data as usize]);
         v
+    }
+
+    #[test]
+    fn relinks_files_moved_between_libraries() {
+        let base = tmp("xlib");
+        let (a, b) = (base.join("A"), base.join("B"));
+        write(&a.join("SFX/boom.wav"), &wav(1));
+        write(&a.join("SFX/copy.wav"), &wav(3));
+        fs::create_dir_all(&b).unwrap();
+        let conn = db::open(&tmp("xdb").join("t.db")).unwrap();
+        for (n, p) in [("A", &a), ("B", &b)] {
+            conn.execute("INSERT INTO libraries (name, path, created_at) VALUES (?1, ?2, 0)", params![n, p.to_string_lossy()]).unwrap();
+        }
+        let m = Mutex::new(conn);
+        index_library(&m, 1, None).unwrap();
+        m.lock().unwrap().execute("INSERT INTO asset_favorites SELECT id, 0 FROM media_assets", []).unwrap();
+        let ids = |c: &Connection, f: &str| -> (i64, i64) { c.query_row("SELECT id, library_id FROM media_assets WHERE filename = ?1", [f], |r| Ok((r.get(0)?, r.get(1)?))).unwrap() };
+        let (boom, _) = ids(&m.lock().unwrap(), "boom.wav");
+
+        // di chuyển boom.wav sang B (giữ thời gian sửa như Explorer); copy.wav chỉ SAO CHÉP sang B
+        write(&b.join("Gom/boom.wav"), &fs::read(a.join("SFX/boom.wav")).unwrap());
+        write(&b.join("Gom/copy.wav"), &fs::read(a.join("SFX/copy.wav")).unwrap());
+        for f in ["boom.wav", "copy.wav"] {
+            let mt = fs::metadata(a.join("SFX").join(f)).unwrap().modified().unwrap();
+            fs::File::options().write(true).open(b.join("Gom").join(f)).unwrap().set_modified(mt).unwrap();
+        }
+        fs::remove_file(a.join("SFX/boom.wav")).unwrap();
+
+        let r = index_library(&m, 2, None).unwrap();
+        assert_eq!((r.relinked, r.added), (1, 1), "{r:?}");
+        let c = m.lock().unwrap();
+        let (id, lib) = ids(&c, "boom.wav");
+        assert_eq!((id, lib), (boom, 2), "cùng asset, đã sang library B");
+        let fav: bool = c.query_row("SELECT favorite FROM api_assets WHERE id = ?1", [id], |r| r.get(0)).unwrap();
+        assert!(fav, "yêu thích đi theo file");
+        let copies: i64 = c.query_row("SELECT count(*) FROM media_assets WHERE filename = 'copy.wav'", [], |r| r.get(0)).unwrap();
+        assert_eq!(copies, 2, "bản sao: file gốc vẫn còn -> không lấy metadata");
     }
 
     #[test]

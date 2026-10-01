@@ -12,7 +12,7 @@
 <body>
   <header>
     <div>
-      <h1>HNH SFX Finder <span class="version">v0.12.2</span></h1>
+      <h1>HNH SFX Finder <span class="version">v0.12.3</span></h1>
       <p id="statusLine">Đang khởi tạo…</p>
     </div>
     <div class="header-actions"><button id="autoBinOpen" class="ghost" aria-haspopup="dialog">Auto Bin</button><button id="updateShortcut" class="ghost" aria-haspopup="dialog">Cập nhật</button><button id="helpBtn" class="ghost" aria-haspopup="dialog">Giới thiệu &amp; Hướng dẫn</button><button id="settingsBtn" class="ghost">Cài đặt</button></div>
@@ -168,9 +168,14 @@
     <p class="hint">Bỏ chọn chỉ loại file khỏi index, không xóa file gốc, tags hay Favorites. Nếu file cũng thuộc thư mục khác còn bật loại đó, file vẫn được hiển thị.</p>
     <p id="libraryTypesStatus" role="status"></p><div class="panel-actions"><button id="libraryTypesCancel" class="secondary">Hủy</button><button id="libraryTypesApply">Chọn thư mục…</button></div>
   </dialog>
-  <dialog id="updatesPanel" aria-labelledby="updatesPanelTitle"><div class="help-head"><h2 id="updatesPanelTitle">Cập nhật HNH SFX Finder</h2><button id="closeUpdatesPanel" autofocus>Đóng</button></div><div class="help-content"><section class="update-settings" id="updateSection"><h3>Cập nhật plugin</h3><label><input id="updateAuto" type="checkbox" checked/> Tự kiểm tra bản mới khi mở plugin (tối đa mỗi ngày một lần)</label><button id="showInstalledHistory" class="secondary">Lịch sử cập nhật</button><p id="installedSummary" class="hint"></p><p id="updateStatus" role="status"></p><button id="updateCheck">Kiểm tra ngay</button> <button id="updateOpen" class="secondary">Mở trang phát hành</button><p class="hint">Nguồn: GitHub dmina97-cpu/hnh-sfx-finder-releases. Chỉ thông báo bản chính thức có ZIP. Tải gói cài, đóng Resolve rồi chạy installer bằng Administrator; plugin không tự cài. Mất mạng không ảnh hưởng thư viện.</p><div id="updateRelease" hidden><h4 id="updateReleaseTitle"></h4><pre id="updateReleaseNotes"></pre></div></section><h3>Lịch sử khi nâng cấp</h3><p>Kiểm tra cập nhật tổng hợp các bản đã bỏ qua. Sau khi cài, cửa sổ Có gì mới hiện những thay đổi từ phiên bản trước; bấm Đã xem để không nhắc lại. Nút Xem lịch sử trong phần cập nhật mở lại lịch sử offline. Khi cài từ bản cũ, installer ghi nhận phiên bản trước; nếu không biết sẽ báo rõ và hiển thị toàn bộ lịch sử đi kèm.</p></div></dialog>
+  <dialog id="libraryRemoveDialog" aria-labelledby="libraryRemoveTitle">
+    <h2 id="libraryRemoveTitle">Gỡ thư mục?</h2><p id="libraryRemovePath"></p>
+    <div id="libraryRemoveBody"></div>
+    <div id="libraryRemoveActions" class="panel-actions"></div>
+  </dialog>
+  <dialog id="updatesPanel" aria-labelledby="updatesPanelTitle"><div class="help-head"><h2 id="updatesPanelTitle">Cập nhật HNH SFX Finder</h2><button id="closeUpdatesPanel" autofocus>Đóng</button></div><div class="help-content"><section class="update-settings" id="updateSection"><h3>Cập nhật plugin</h3><label><input id="updateAuto" type="checkbox" checked/> Tự kiểm tra bản mới khi mở plugin (tối đa mỗi ngày một lần)</label><button id="showInstalledHistory" class="secondary">Lịch sử cập nhật</button><p id="installedSummary" class="hint"></p><p id="updateStatus" role="status"></p><button id="updateCheck">Kiểm tra ngay</button> <button id="updateOpen" class="secondary">Mở trang phát hành</button><p class="hint">Nguồn: GitHub dmina97-cpu/mrm-media-resource-manager. Chỉ thông báo bản chính thức có ZIP. Tải gói cài, đóng Resolve rồi chạy installer bằng Administrator; plugin không tự cài. Mất mạng không ảnh hưởng thư viện.</p><div id="updateRelease" hidden><h4 id="updateReleaseTitle"></h4><pre id="updateReleaseNotes"></pre></div></section><h3>Lịch sử khi nâng cấp</h3><p>Kiểm tra cập nhật tổng hợp các bản đã bỏ qua. Sau khi cài, cửa sổ Có gì mới hiện những thay đổi từ phiên bản trước; bấm Đã xem để không nhắc lại. Nút Xem lịch sử trong phần cập nhật mở lại lịch sử offline. Khi cài từ bản cũ, installer ghi nhận phiên bản trước; nếu không biết sẽ báo rõ và hiển thị toàn bộ lịch sử đi kèm.</p></div></dialog>
   <dialog id="helpDialog" aria-labelledby="helpTitle">
-    <div class="help-head"><div><h2 id="helpTitle">HNH SFX Finder</h2><p>v0.12.2 • Windows • DaVinci Resolve Studio</p></div><button id="closeHelp" autofocus aria-label="Đóng hướng dẫn">Đóng</button></div>
+    <div class="help-head"><div><h2 id="helpTitle">HNH SFX Finder</h2><p>v0.12.3 • Windows · macOS • DaVinci Resolve Studio</p></div><button id="closeHelp" autofocus aria-label="Đóng hướng dẫn">Đóng</button></div>
     <div class="help-content">
 <section class="help-author"><h3>Nhà phát triển: Phạm Nam</h3><p>Facebook: <strong>facebook.com/phamnam22s</strong></p><p>Anh em cần hỏi cách dùng, báo lỗi hoặc muốn góp ý thêm tính năng thì nhắn Facebook cho mình nhé.</p><button id="contactDeveloper">Nhắn Facebook cho Phạm Nam</button><p id="contactStatus" role="status"></p></section>
 <section class="help-card"><h3>Thiết lập ban đầu</h3><ol><li>Mở <b>Cài đặt</b>, thêm thư mục chứa tài nguyên của bạn.</li><li>Chọn loại tài nguyên cần quét: âm thanh, hình ảnh hoặc video. Có thể thêm nhiều thư mục.</li><li>Chờ lần quét đầu hoàn tất, chuyển sang tab tương ứng để tìm và chọn file. Những lần mở sau sẽ dùng danh sách đã lưu và đối soát ở nền.</li><li>Mở project và timeline trong Resolve, chọn track đích rồi chèn tài nguyên tại playhead.</li></ol></section>
@@ -212,6 +217,7 @@
   <script src="batch-selection.js"></script>
   <script src="media-browser.js"></script>
   <script src="library-types-ui.js"></script>
+  <script src="library-remove-ui.js"></script>
   <script src="updates.js"></script>
   <script src="timeline-range.js"></script>
 <script src="compact-layout.js"></script>

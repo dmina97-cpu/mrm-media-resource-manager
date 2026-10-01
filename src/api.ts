@@ -21,6 +21,20 @@ export interface Library {
   size: number;
 }
 
+export interface LibraryImpact {
+  resources: number;
+  curated_resources: number;
+  shared_resources: number;
+  media: number;
+  curated_media: number;
+}
+
+export interface RelinkPreview {
+  path: string;
+  checked: number;
+  found: number;
+}
+
 export interface ResourceSummary {
   id: number;
   name: string;
@@ -504,6 +518,9 @@ export const api = {
   updateLibrary: (id: number, name: string, scanDepth: number) =>
     invoke<void>("update_library", { id, name, scanDepth }),
   removeLibrary: (id: number) => invoke<void>("remove_library", { id }),
+  libraryImpact: (id: number) => invoke<LibraryImpact>("library_impact", { id }),
+  previewRelinkLibrary: (id: number, path: string) => invoke<RelinkPreview>("preview_relink_library", { id, path }),
+  relinkLibrary: (id: number, path: string) => invoke<Library>("relink_library", { id, path }),
   scanLibrary: (id: number, full = false) => invoke<ScanResult>("scan_library", { id, full }),
   scanAll: () => invoke<ScanResult[]>("scan_all"),
 

@@ -1862,3 +1862,79 @@ button.rel-row:hover {
 .nav-item.nav-sub {
   padding-left: 26px;
 }
+
+/* ---------------------------------------------------------------- gỡ / đổi đường dẫn library */
+.lib-dialog {
+  width: min(680px, 100%);
+}
+.lib-warn,
+.lib-ok {
+  border-radius: 8px;
+  padding: 10px 14px;
+  line-height: 1.5;
+  font-size: 13px;
+}
+.lib-warn {
+  background: var(--warn-soft);
+  color: var(--warn);
+}
+.lib-warn ul {
+  margin: 6px 0 0 18px;
+}
+.lib-ok {
+  background: rgba(76, 195, 138, 0.14);
+  color: var(--ok);
+}
+.lib-err {
+  color: var(--danger);
+  font-size: 13px;
+}
+.lib-alts {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border-top: 1px solid var(--line);
+  padding-top: 12px;
+}
+.lib-alt {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: var(--panel);
+  font-size: 13px;
+}
+.lib-alt > svg {
+  flex: none;
+  margin-top: 2px;
+  color: var(--accent);
+}
+.lib-alt > div {
+  flex: 1;
+  min-width: 0;
+}
+.lib-alt .btn {
+  flex: none;
+  align-self: center;
+}
+.lib-paths {
+  display: grid;
+  gap: 8px;
+}
+.lib-paths > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.lib-paths code {
+  font-family: var(--mono);
+  font-size: 12px;
+  background: var(--panel);
+  border-radius: 6px;
+  padding: 6px 8px;
+  word-break: break-all;
+}
+.lib-foot {
+  align-items: center;
+}

@@ -28,8 +28,8 @@ Tải bản cài ở mục **[Releases](../../releases)**:
 
 | Thành phần | Phiên bản |
 |---|---|
-| MRM | **0.11.0** |
-| Plugin HNH SFX Finder | **0.12.2** |
+| MRM | **0.12.0** |
+| Plugin HNH SFX Finder | **0.12.3** |
 
 ## Yêu cầu hệ thống
 
@@ -146,6 +146,13 @@ Script lấy file bridge `WorkflowIntegration.node` bản macOS có sẵn trong 
 ## Câu hỏi thường gặp
 
 **MRM có sửa hay xóa file của tôi không?** Không. MRM chỉ đọc file để lập chỉ mục; mọi thay đổi (tag, ghi chú, ảnh bìa…) chỉ nằm trong database của MRM.
+
+**Sắp xếp lại thư mục có mất tag, yêu thích, ghi chú không?** Không, nếu làm đúng cách:
+- Di chuyển / đổi tên thư mục gốc hoặc chuyển sang ổ khác → **Libraries & Settings → Đổi đường dẫn** ở library đó.
+- Sắp xếp lại thư mục con bên trong → chỉ cần **Quét**: file di chuyển tự được nối lại.
+- Gom sang library khác → thêm và quét library mới **trước**, rồi mới gỡ library cũ: file media đã chuyển mang theo tag, yêu thích. Gói tài nguyên: chọn bản cũ + bản mới → **Gộp**.
+
+Khi bấm **Gỡ**, MRM báo trước dữ liệu nào sẽ mất và tự sao lưu database.
 
 **Không có GPU NVIDIA thì sao?** MRM chạy bình thường. Chỉ phần AI sẽ chậm hơn (chạy bằng CPU), hoặc bạn có thể không bật AI.
 

@@ -5,6 +5,7 @@ import { errorText, formatDateTime, formatNumber, formatSize } from "../format";
 import { Icon } from "./Icon";
 import { AiSettings, StorageSettings } from "./AiSettings";
 import { ExcludeSettings, UpdateSettings } from "./Updates";
+import { RelinkLibraryDialog, RemoveLibraryDialog } from "./LibraryDialogs";
 
 interface Props {
   libraries: Library[];
@@ -204,6 +205,7 @@ function LibraryRow({
   const [name, setName] = useState(lib.name);
   const [depth, setDepth] = useState(lib.scan_depth);
   const [overrides, setOverrides] = useState<ScanOverride[]>([]);
+  const [dialog, setDialog] = useState<"remove" | "relink" | null>(null);
   const loadOverrides = () => api.listScanOverrides(lib.id).then(setOverrides);
   useEffect(() => {
     loadOverrides();
@@ -222,6 +224,14 @@ function LibraryRow({
           <input value={name} onChange={(e) => setName(e.target.value)} aria-label="Tên library" />
           {!lib.online && <span className="badge warn">offline</span>}
         </div>
+        {!lib.online && (
+          <div className="muted small">
+            Không thấy thư mục. Đã di chuyển / đổi tên?{" "}
+            <button className="link-btn" onClick={() => setDialog("relink")}>
+              Tìm lại vị trí mới
+            </button>
+          </div>
+        )}
         <div className="muted small">{lib.path}</div>
         <div className="muted small">
           {formatNumber(lib.source_count)} nguồn · {formatSize(lib.size)} · quét lần cuối {formatDateTime(lib.last_scan_at)}
@@ -271,16 +281,37 @@ function LibraryRow({
         <button className="btn tiny" disabled={scanning || !lib.online} onClick={() => onScan(lib.id, true)} title="Đọc lại toàn bộ metadata, bỏ qua cache">
           Quét lại toàn bộ
         </button>
-        <button
-          className="btn tiny danger"
-          onClick={() =>
-            confirm(`Gỡ library "${lib.name}" khỏi MRM?\n\nChỉ xóa metadata (tag, notes của resource chỉ nằm trong library này). File thật trên ổ đĩa KHÔNG bị ảnh hưởng.`) &&
-            run(async () => { await api.removeLibrary(lib.id); onChanged(); }, "Đã gỡ library")
-          }
-        >
+        <button className="btn tiny" disabled={scanning} onClick={() => setDialog("relink")} title="Thư mục gốc đã di chuyển / đổi tên / sang ổ khác — giữ nguyên tag, ghi chú">
+          <Icon name="folder" size={12} /> Đổi đường dẫn
+        </button>
+        <button className="btn tiny danger" disabled={scanning} onClick={() => setDialog("remove")}>
           Gỡ
         </button>
       </div>
+      {dialog === "remove" && (
+        <RemoveLibraryDialog
+          lib={lib}
+          onClose={() => setDialog(null)}
+          onRelink={() => setDialog("relink")}
+          onRemoved={() => {
+            setDialog(null);
+            onChanged();
+            run(async () => {}, "Đã gỡ library");
+          }}
+        />
+      )}
+      {dialog === "relink" && (
+        <RelinkLibraryDialog
+          lib={lib}
+          onClose={() => setDialog(null)}
+          onDone={(l) => {
+            setDialog(null);
+            onChanged();
+            onScan(l.id, false);
+            run(async () => {}, `Đã đổi đường dẫn — đang quét ${l.path}`);
+          }}
+        />
+      )}
     </div>
   );
 }
