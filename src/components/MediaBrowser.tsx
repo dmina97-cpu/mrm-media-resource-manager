@@ -863,7 +863,7 @@ function Browser({ view, resource, onClearResource, collection, onClearCollectio
                 <div
                   key={it.id}
                   id={`mb-${it.id}`}
-                  className={`mb-row ${showWave ? "wave" : ""} ${selected.has(it.id) ? "selected" : ""} ${it.available ? "" : "missing"}`}
+                  className={`mb-row ${selected.has(it.id) ? "selected" : ""} ${it.available ? "" : "missing"}`}
                   onClick={(e) => select(it, e)}
                   onContextMenu={(e) => itemMenu(it, e)}
                   onDoubleClick={() => it.media_type === "audio" && play(it)}
@@ -895,13 +895,11 @@ function Browser({ view, resource, onClearResource, collection, onClearCollectio
                     <div className="truncate muted small" title={it.rel_path}>
                       {contextOf(it)}
                     </div>
-                  </div>
-                  {showWave &&
-                    (it.media_type === "audio" && it.available ? (
+                    {/* waveform dưới tên: không chiếm chỗ của tên file */}
+                    {showWave && it.media_type === "audio" && it.available && (
                       <RowWave id={it.id} progress={playing === it.id ? progress : 0} onSeek={(r) => (setFocusId(it.id), play(it, r))} />
-                    ) : (
-                      <span />
-                    ))}
+                    )}
+                  </div>
                   <span className="mb-col muted small">{formatDuration(it.duration)}</span>
                   <span className="mb-col ext">{it.ext}</span>
                   <span className="mb-col muted small">{formatSize(it.size)}</span>

@@ -1053,12 +1053,10 @@ button.rel-row:hover {
   cursor: default;
   user-select: none;
 }
-.mb-row.wave {
-  grid-template-columns: 34px minmax(0, 1fr) minmax(90px, 180px) 52px 44px 64px 28px;
-}
 .mb-wave {
-  height: 26px;
-  min-width: 0;
+  height: 22px;
+  margin-top: 3px;
+  max-width: 520px;
 }
 .mb-wave .waveform {
   width: 100%;
@@ -1068,18 +1066,9 @@ button.rel-row:hover {
 .mb-wave-empty {
   display: block;
   height: 2px;
-  margin-top: 12px;
+  margin-top: 10px;
   background: var(--line);
   border-radius: 1px;
-}
-@media (max-width: 1100px) {
-  .mb-row.wave {
-    grid-template-columns: 34px minmax(0, 1fr) 52px 44px 64px 28px;
-  }
-  .mb-row.wave .mb-wave,
-  .mb-row.wave > span:empty {
-    display: none;
-  }
 }
 .mb-row:hover {
   background: var(--hover);
