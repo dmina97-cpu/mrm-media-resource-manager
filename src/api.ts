@@ -408,6 +408,8 @@ export interface Rule {
   match_all: boolean;
   conditions: RuleCondition[];
   tag_ids: number[];
+  /** Tạo từ "Gán thư mục cho ứng dụng" */
+  folder_app?: boolean;
 }
 
 export interface AiProgress {
@@ -459,6 +461,8 @@ export interface ResourceQuery {
   sort: SortKey;
   desc: boolean;
   semantic?: boolean;
+  /** folder | archive | zip | rar | 7z | file */
+  source_kind?: string | null;
 }
 
 export interface ScanResult {

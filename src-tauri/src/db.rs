@@ -3,7 +3,7 @@
 use rusqlite::{params, Connection, OptionalExtension};
 use std::path::Path;
 
-pub const SCHEMA_VERSION: i64 = 12;
+pub const SCHEMA_VERSION: i64 = 13;
 /// Phiên bản "hợp đồng" dữ liệu giữa MRM và plugin DaVinci (các view api_* và bảng asset_*).
 /// Tăng khi thay đổi làm plugin cũ đọc/ghi sai.
 pub const PLUGIN_CONTRACT: i64 = 1;
@@ -420,6 +420,13 @@ pub fn migrate(conn: &Connection) -> rusqlite::Result<()> {
              PRAGMA user_version = 12;",
         )?;
     }
+    if version < 13 {
+        // Rule "gán thư mục cho ứng dụng": tag gắn theo thư mục là ý người dùng, không cần rà soát
+        conn.execute_batch(
+            "ALTER TABLE rules ADD COLUMN folder_app INTEGER NOT NULL DEFAULT 0;
+             PRAGMA user_version = 13;",
+        )?;
+    }
     set_setting(conn, "plugin_contract", &PLUGIN_CONTRACT.to_string())?;
     Ok(())
 }
@@ -759,6 +766,7 @@ mod tests {
              DROP TABLE asset_smart_collections; DROP TABLE collection_assets; DROP TABLE media_assets;
              DROP TABLE app_presence; DROP TABLE app_requests;
              ALTER TABLE libraries DROP COLUMN media_types;
+             ALTER TABLE rules DROP COLUMN folder_app;
              PRAGMA user_version = 4;",
         )
         .unwrap();

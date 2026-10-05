@@ -48,7 +48,9 @@ export function formatDuration(s: number | null | undefined) {
 }
 
 function joinPath(root: string, rel: string) {
-  return /[\\/]$/.test(root) ? root + rel : `${root}\\${rel}`;
+  if (/[\\/]$/.test(root)) return root + rel;
+  // macOS / Linux: gốc dạng "/Users/..." -> nối bằng "/" (Windows giữ "\\")
+  return root.startsWith("/") ? `${root}/${rel}` : `${root}\\${rel}`;
 }
 
 /** Dòng phụ: resource + thư mục chứa gần nhất (nhiều pack đặt tên file giống nhau: 01.wav…). */
@@ -153,6 +155,71 @@ function Thumb({ item }: { item: AssetItem }) {
 
 // ---------------------------------------------------------------- waveform
 
+/** Waveform nhỏ trên dòng âm thanh: chỉ tải khi dòng hiện trên màn hình, tối đa 2 file cùng lúc, nhớ kết quả. */
+const rowPeaks = new Map<number, number[]>();
+const rowWaiting: { id: number; run: () => void }[] = [];
+let rowActive = 0;
+function pumpRowWaves() {
+  while (rowActive < 2 && rowWaiting.length) {
+    const job = rowWaiting.shift()!;
+    rowActive++;
+    job.run();
+  }
+}
+function loadRowPeaks(id: number): Promise<number[]> {
+  const hit = rowPeaks.get(id);
+  if (hit) return Promise.resolve(hit);
+  return new Promise((resolve) => {
+    rowWaiting.push({
+      id,
+      run: () =>
+        api
+          .assetWaveform(id)
+          .catch(() => [] as number[])
+          .then((p) => {
+            rowPeaks.set(id, p);
+            resolve(p);
+          })
+          .finally(() => {
+            rowActive--;
+            pumpRowWaves();
+          }),
+    });
+    pumpRowWaves();
+  });
+}
+
+function RowWave({ id, progress, onSeek }: { id: number; progress: number; onSeek: (r: number) => void }) {
+  const holder = useRef<HTMLDivElement>(null);
+  const [peaks, setPeaks] = useState<number[] | null>(() => rowPeaks.get(id) ?? null);
+  useEffect(() => {
+    if (peaks) return;
+    const el = holder.current;
+    if (!el) return;
+    let alive = true;
+    let timer = 0;
+    const io = new IntersectionObserver(([en]) => {
+      window.clearTimeout(timer);
+      // cuộn nhanh qua thì không tải
+      if (en.isIntersecting) timer = window.setTimeout(() => loadRowPeaks(id).then((p) => alive && setPeaks(p)), 200);
+    });
+    io.observe(el);
+    return () => {
+      alive = false;
+      window.clearTimeout(timer);
+      io.disconnect();
+      // dòng đã cuộn khỏi màn hình mà chưa tới lượt -> bỏ khỏi hàng đợi
+      const i = rowWaiting.findIndex((j) => j.id === id);
+      if (i >= 0) rowWaiting.splice(i, 1);
+    };
+  }, [id, peaks]);
+  return (
+    <div ref={holder} className="mb-wave" onClick={(e) => e.stopPropagation()} title="Bấm để nghe từ vị trí này">
+      {peaks && peaks.length > 0 ? <Waveform peaks={peaks} progress={progress} onSeek={onSeek} /> : <span className="mb-wave-empty" />}
+    </div>
+  );
+}
+
 function Waveform({ peaks, progress, onSeek }: { peaks: number[] | null; progress: number; onSeek: (r: number) => void }) {
   const ref = useRef<HTMLCanvasElement>(null);
   useEffect(() => {
@@ -233,6 +300,8 @@ export function MediaBrowser(props: Props) {
 
 function Browser({ view, resource, onClearResource, collection, onClearCollection, initialFolder, favFolders, onFavFoldersChanged, libraries, reloadKey, pendingMeta, aiReady, onChanged, onOpenResource, toast }: Props) {
   const mediaType: MediaType | null = view === "favorites" || view === "recent" ? null : view;
+  // cột waveform: tab Âm thanh và các danh sách trộn (yêu thích, gần đây)
+  const showWave = mediaType === "audio" || mediaType === null;
   const [text, setText] = useState("");
   const [debounced, setDebounced] = useState("");
   const [ext, setExt] = useState<string>("");
@@ -373,6 +442,13 @@ function Browser({ view, resource, onClearResource, collection, onClearCollectio
 
   // dừng nhạc khi rời trang
   useEffect(() => () => audioRef.current?.pause(), []);
+  // ...và khi chuyển sang tab khác của Media Browser (component không bị gỡ nên phải tự dừng)
+  useEffect(() => {
+    const a = audioRef.current;
+    if (a && !a.paused) a.pause();
+    setPlaying(null);
+    setProgress(0);
+  }, [view]);
 
   const focus = items.find((i) => i.id === focusId) ?? (outside && outside.id === focusId ? outside : null);
 
@@ -407,7 +483,9 @@ function Browser({ view, resource, onClearResource, collection, onClearCollectio
         if (a.readyState >= 1) seek();
         else a.addEventListener("loadedmetadata", seek, { once: true });
       }
-      a.play().catch(() => undefined);
+      a.play().catch((err: DOMException) => {
+        if (err?.name !== "AbortError") toast(`Không phát được ${item.filename}: ${err?.message || "lỗi trình phát"}`, "err");
+      });
     },
     [playing, pathOf, toast],
   );
@@ -785,7 +863,7 @@ function Browser({ view, resource, onClearResource, collection, onClearCollectio
                 <div
                   key={it.id}
                   id={`mb-${it.id}`}
-                  className={`mb-row ${selected.has(it.id) ? "selected" : ""} ${it.available ? "" : "missing"}`}
+                  className={`mb-row ${showWave ? "wave" : ""} ${selected.has(it.id) ? "selected" : ""} ${it.available ? "" : "missing"}`}
                   onClick={(e) => select(it, e)}
                   onContextMenu={(e) => itemMenu(it, e)}
                   onDoubleClick={() => it.media_type === "audio" && play(it)}
@@ -818,6 +896,12 @@ function Browser({ view, resource, onClearResource, collection, onClearCollectio
                       {contextOf(it)}
                     </div>
                   </div>
+                  {showWave &&
+                    (it.media_type === "audio" && it.available ? (
+                      <RowWave id={it.id} progress={playing === it.id ? progress : 0} onSeek={(r) => (setFocusId(it.id), play(it, r))} />
+                    ) : (
+                      <span />
+                    ))}
                   <span className="mb-col muted small">{formatDuration(it.duration)}</span>
                   <span className="mb-col ext">{it.ext}</span>
                   <span className="mb-col muted small">{formatSize(it.size)}</span>

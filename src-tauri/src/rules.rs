@@ -3,7 +3,7 @@
 
 use crate::commands::AppState;
 use crate::db;
-use rusqlite::{params, Connection};
+use rusqlite::{params, Connection, OptionalExtension};
 use serde::{Deserialize, Serialize};
 use tauri::State;
 
@@ -31,6 +31,15 @@ pub struct Rule {
     pub match_all: bool,
     pub conditions: Vec<Condition>,
     pub tag_ids: Vec<i64>,
+    /// Tạo từ "Gán thư mục cho ứng dụng": tag gắn với nguồn 'folder' (không vào Cần rà soát)
+    #[serde(default)]
+    pub folder_app: bool,
+}
+
+impl Rule {
+    fn tag_source(&self) -> &'static str {
+        if self.folder_app { "folder" } else { "rule" }
+    }
 }
 
 /// Dữ liệu của một resource dùng để so khớp rule.
@@ -113,10 +122,11 @@ fn row_to_rule(r: &rusqlite::Row<'_>) -> rusqlite::Result<Rule> {
         match_all: r.get::<_, i64>(4)? != 0,
         conditions: serde_json::from_str(&cond).unwrap_or_default(),
         tag_ids: serde_json::from_str(&tags).unwrap_or_default(),
+        folder_app: r.get::<_, i64>(7)? != 0,
     })
 }
 
-const SELECT: &str = "SELECT id, name, enabled, auto_apply, match_all, conditions, tag_ids FROM rules";
+const SELECT: &str = "SELECT id, name, enabled, auto_apply, match_all, conditions, tag_ids, folder_app FROM rules";
 
 pub fn load_enabled(conn: &Connection) -> rusqlite::Result<Vec<Rule>> {
     let mut s = conn.prepare(&format!("{SELECT} WHERE enabled = 1 ORDER BY id"))?;
@@ -135,7 +145,7 @@ pub fn apply_auto(conn: &Connection, rules: &[Rule], resource_id: i64) -> rusqli
     for r in auto {
         if matches(r, &f) {
             for t in &r.tag_ids {
-                if crate::autotag::insert_auto(conn, resource_id, *t, "rule", &format!("Rule: {}", r.name))? {
+                if crate::autotag::insert_auto(conn, resource_id, *t, r.tag_source(), &format!("Rule: {}", r.name))? {
                     n += 1;
                 }
             }
@@ -180,15 +190,15 @@ pub fn save_rule(state: State<AppState>, rule: Rule) -> Res<i64> {
     let tags = serde_json::to_string(&rule.tag_ids).map_err(e)?;
     if rule.id > 0 {
         conn.execute(
-            "UPDATE rules SET name=?1, enabled=?2, auto_apply=?3, match_all=?4, conditions=?5, tag_ids=?6 WHERE id=?7",
-            params![rule.name.trim(), rule.enabled, rule.auto_apply, rule.match_all, cond, tags, rule.id],
+            "UPDATE rules SET name=?1, enabled=?2, auto_apply=?3, match_all=?4, conditions=?5, tag_ids=?6, folder_app=?8 WHERE id=?7",
+            params![rule.name.trim(), rule.enabled, rule.auto_apply, rule.match_all, cond, tags, rule.id, rule.folder_app],
         )
         .map_err(e)?;
         Ok(rule.id)
     } else {
         conn.execute(
-            "INSERT INTO rules (name, enabled, auto_apply, match_all, conditions, tag_ids, created_at) VALUES (?1,?2,?3,?4,?5,?6,?7)",
-            params![rule.name.trim(), rule.enabled, rule.auto_apply, rule.match_all, cond, tags, db::now()],
+            "INSERT INTO rules (name, enabled, auto_apply, match_all, conditions, tag_ids, created_at, folder_app) VALUES (?1,?2,?3,?4,?5,?6,?7,?8)",
+            params![rule.name.trim(), rule.enabled, rule.auto_apply, rule.match_all, cond, tags, db::now(), rule.folder_app],
         )
         .map_err(e)?;
         Ok(conn.last_insert_rowid())
@@ -197,8 +207,24 @@ pub fn save_rule(state: State<AppState>, rule: Rule) -> Res<i64> {
 
 #[tauri::command]
 pub fn delete_rule(state: State<AppState>, id: i64) -> Res<()> {
-    state.db.lock().unwrap().execute("DELETE FROM rules WHERE id = ?1", [id]).map_err(e)?;
-    Ok(())
+    let mut conn = state.db.lock().unwrap();
+    let tx = conn.transaction().map_err(e)?;
+    let rule = tx.query_row(&format!("{SELECT} WHERE id = ?1"), [id], row_to_rule).optional().map_err(e)?;
+    // Gỡ "gán thư mục cho ứng dụng": gỡ luôn tag đã gắn theo thư mục đó (tag người dùng tự gắn giữ nguyên)
+    if let Some(r) = rule.filter(|r| r.folder_app) {
+        let reason = format!("Rule: {}", r.name);
+        let ids: Vec<i64> = {
+            let mut s = tx.prepare("SELECT DISTINCT resource_id FROM resource_tags WHERE source = 'folder' AND reason = ?1").map_err(e)?;
+            let v = s.query_map([&reason], |x| x.get(0)).map_err(e)?.collect::<Result<_, _>>().map_err(e)?;
+            v
+        };
+        tx.execute("DELETE FROM resource_tags WHERE source = 'folder' AND reason = ?1", [&reason]).map_err(e)?;
+        for rid in ids {
+            db::reindex(&tx, rid).map_err(e)?;
+        }
+    }
+    tx.execute("DELETE FROM rules WHERE id = ?1", [id]).map_err(e)?;
+    tx.commit().map_err(e)
 }
 
 #[derive(Serialize)]
@@ -239,7 +265,7 @@ pub fn apply_rule_now(state: State<AppState>, id: i64) -> Res<usize> {
     let m = matching_resources(&tx, &rule)?;
     for (rid, _) in &m {
         for t in &rule.tag_ids {
-            crate::autotag::insert_auto(&tx, *rid, *t, "rule", &format!("Rule: {}", rule.name)).map_err(e)?;
+            crate::autotag::insert_auto(&tx, *rid, *t, rule.tag_source(), &format!("Rule: {}", rule.name)).map_err(e)?;
         }
         db::reindex(&tx, *rid).map_err(e)?;
     }
@@ -270,7 +296,21 @@ mod tests {
             match_all: all,
             conditions: conds.into_iter().map(|(f, o, v)| Condition { field: f.into(), op: o.into(), value: v.into() }).collect(),
             tag_ids: vec![1],
+            folder_app: false,
         }
+    }
+
+    #[test]
+    fn folder_rule_matches_folder_and_inside_only() {
+        // "Gán thư mục cho ứng dụng": bằng thư mục HOẶC bắt đầu bằng thư mục + "/" (không dính "luts2")
+        let r = |p: &str| {
+            let mut f = facts();
+            f.paths = vec![p.into()];
+            matches(&rule(vec![("path", "equals", r"D:\Resources\LUTs"), ("path", "starts_with", "D:/Resources/LUTs/")], false), &f)
+        };
+        assert!(r("d:/resources/luts"));
+        assert!(r("d:/resources/luts/kodak 2383 lut pack"));
+        assert!(!r("d:/resources/luts2/pack"));
     }
 
     #[test]

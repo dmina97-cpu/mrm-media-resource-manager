@@ -20,6 +20,7 @@ import { UpdateBanner } from "./components/Updates";
 import { Onboarding } from "./components/Onboarding";
 import { promptNewCollection } from "./components/Collections";
 import { ContextMenu, MenuState } from "./components/ContextMenu";
+import { AppFolderDialog } from "./components/AppFolders";
 import "./styles.css";
 import "./styles-media.css";
 
@@ -71,6 +72,8 @@ export default function App() {
   const [items, setItems] = useState<ResourceSummary[]>([]);
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState<SortKey>(() => loadPref("sort", "name"));
+  const [sourceKind, setSourceKind] = useState<string>(() => loadPref("sourceKind", ""));
+  useEffect(() => savePref("sourceKind", sourceKind), [sourceKind]);
   const [desc, setDesc] = useState<boolean>(() => loadPref("desc", false));
   const [layout, setLayout] = useState<"grid" | "list">(() => loadPref("layout", "list"));
   const [selected, setSelected] = useState<Set<number>>(new Set());
@@ -109,6 +112,7 @@ export default function App() {
   }, []);
 
   const refresh = useCallback(() => setReloadKey((k) => k + 1), []);
+  const [appFolderOpen, setAppFolderOpen] = useState(false);
 
   // Media Browser: số đếm + trạng thái plugin DaVinci; mediaKey chỉ đổi khi thư viện được quét lại
   const [mediaCounts, setMediaCounts] = useState<AssetCounts | null>(null);
@@ -177,8 +181,9 @@ export default function App() {
       search,
       sort: effectiveSort,
       desc,
+      source_kind: sourceKind || null,
     };
-  }, [route, search, effectiveSort, desc]);
+  }, [route, search, effectiveSort, desc, sourceKind]);
 
   useEffect(() => {
     if (!query) return;
@@ -408,6 +413,7 @@ export default function App() {
         pluginActive={!!presence?.plugin_active}
         collections={collections}
         favFolders={favFolders}
+        onAssignAppFolder={() => setAppFolderOpen(true)}
         onNewCollection={async () => {
           const id = await promptNewCollection(toast);
           if (id != null) {
@@ -470,6 +476,21 @@ export default function App() {
                 )}
               </div>
               <div className="toolbar-actions">
+                <select
+                  value={sourceKind}
+                  onChange={(e) => setSourceKind(e.target.value)}
+                  aria-label="Lọc theo kiểu"
+                  title="Lọc theo kiểu: thư mục, file nén (ZIP/RAR/7Z) hoặc file lẻ"
+                  className={sourceKind ? "active-filter" : ""}
+                >
+                  <option value="">Mọi kiểu</option>
+                  <option value="folder">Thư mục</option>
+                  <option value="archive">File nén (tất cả)</option>
+                  <option value="zip">ZIP</option>
+                  <option value="rar">RAR</option>
+                  <option value="7z">7Z</option>
+                  <option value="file">File lẻ</option>
+                </select>
                 <select
                   value={effectiveSort}
                   onChange={(e) => (searching ? setSearchSort(e.target.value as SortKey) : setSort(e.target.value as SortKey))}
@@ -753,6 +774,16 @@ export default function App() {
       )}
 
       <ContextMenu menu={resMenu} onClose={() => setResMenu(null)} />
+      {appFolderOpen && (
+        <AppFolderDialog
+          libraries={libraries}
+          tags={tags}
+          initialAppId={route.page === "resources" && route.view === "tag" ? (tags.find((t) => t.id === route.tagId && t.kind === "app")?.id ?? null) : null}
+          onClose={() => setAppFolderOpen(false)}
+          onChanged={refresh}
+          toast={toast}
+        />
+      )}
 
       <div className="toasts" role="status">
         {toasts.map((t) => (

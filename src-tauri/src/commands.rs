@@ -381,6 +381,22 @@ pub struct ResourceQuery {
     desc: bool,
     /// Dùng semantic search (AI) khi tìm kiếm — mặc định bật nếu AI sẵn sàng.
     semantic: Option<bool>,
+    /// Lọc theo kiểu nguồn: folder | archive | zip | rar | 7z | file
+    #[serde(default)]
+    source_kind: Option<String>,
+}
+
+/// Điều kiện SQL lọc resource theo kiểu nguồn (thư mục / file nén / file lẻ).
+fn source_kind_cond(kind: &str) -> Option<&'static str> {
+    Some(match kind {
+        "folder" => "EXISTS (SELECT 1 FROM resource_sources s WHERE s.resource_id = r.id AND s.kind = 'folder')",
+        "archive" => "EXISTS (SELECT 1 FROM resource_sources s WHERE s.resource_id = r.id AND s.kind = 'archive')",
+        "zip" => "EXISTS (SELECT 1 FROM resource_sources s WHERE s.resource_id = r.id AND s.kind = 'archive' AND lower(s.name) LIKE '%.zip')",
+        "rar" => "EXISTS (SELECT 1 FROM resource_sources s WHERE s.resource_id = r.id AND s.kind = 'archive' AND lower(s.name) LIKE '%.rar')",
+        "7z" => "EXISTS (SELECT 1 FROM resource_sources s WHERE s.resource_id = r.id AND s.kind = 'archive' AND lower(s.name) LIKE '%.7z')",
+        "file" => "EXISTS (SELECT 1 FROM resource_sources s WHERE s.resource_id = r.id AND s.kind = 'file')",
+        _ => return None,
+    })
 }
 
 #[derive(Serialize)]
@@ -499,6 +515,10 @@ fn query_resources_blocking(app: &AppHandle, q: ResourceQuery) -> Res<Vec<Resour
             args.push(V::Integer(q.collection_id.unwrap_or(-1)));
         }
         _ => {}
+    }
+
+    if let Some(c) = q.source_kind.as_deref().and_then(source_kind_cond) {
+        conds.push(c.into());
     }
 
     let (filters, words) = parse_search(&q.search);

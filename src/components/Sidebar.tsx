@@ -15,11 +15,12 @@ interface Props {
   collections: CollectionInfo[];
   favFolders: FavoriteFolder[];
   onNewCollection: () => void;
+  onAssignAppFolder: () => void;
 }
 
 const GROUPS: TagKind[] = ["app", "type", "function", "personal", "status"];
 
-export function Sidebar({ route, onNavigate, tags, libraries, counts, mediaCounts, pluginActive, collections, favFolders, onNewCollection }: Props) {
+export function Sidebar({ route, onNavigate, tags, libraries, counts, mediaCounts, pluginActive, collections, favFolders, onNewCollection, onAssignAppFolder }: Props) {
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({ personal: false, status: true });
   const [showEmpty, setShowEmpty] = useState<Record<string, boolean>>({});
 
@@ -117,10 +118,17 @@ export function Sidebar({ route, onNavigate, tags, libraries, counts, mediaCount
           }
           return (
             <div className="nav-section" key={kind}>
-              <button className="nav-heading clickable" onClick={() => setCollapsed((c) => ({ ...c, [kind]: !c[kind] }))}>
-                <span className={`caret ${collapsed[kind] ? "" : "open"}`}>›</span>
-                {KIND_LABEL[kind]}
-              </button>
+              <div className="nav-heading-row">
+                <button className="nav-heading clickable" onClick={() => setCollapsed((c) => ({ ...c, [kind]: !c[kind] }))}>
+                  <span className={`caret ${collapsed[kind] ? "" : "open"}`}>›</span>
+                  {KIND_LABEL[kind]}
+                </button>
+                {kind === "app" && (
+                  <button className="nav-add" onClick={onAssignAppFolder} title="Gán thư mục cho ứng dụng (vd: thư mục preset → CapCut)">
+                    <Icon name="plus" size={12} />
+                  </button>
+                )}
+              </div>
               {!collapsed[kind] && (
                 <>
                   {list.map((t) => (

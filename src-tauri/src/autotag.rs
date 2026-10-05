@@ -12,7 +12,7 @@ use rusqlite::{params, Connection, OptionalExtension};
 
 /// Điều kiện SQL: resource có tag tự động chưa được xác nhận (bỏ qua trạng thái do máy quét).
 pub const NEEDS_REVIEW_SQL: &str = "EXISTS (SELECT 1 FROM resource_tags rt JOIN tags t ON t.id = rt.tag_id
-    WHERE rt.resource_id = r.id AND rt.source IS NOT NULL AND rt.source <> 'scan' AND t.kind <> 'status')";
+    WHERE rt.resource_id = r.id AND rt.source IS NOT NULL AND rt.source NOT IN ('scan', 'folder') AND t.kind <> 'status')";
 
 pub fn is_rejected(conn: &Connection, resource_id: i64, tag_id: i64) -> rusqlite::Result<bool> {
     Ok(conn

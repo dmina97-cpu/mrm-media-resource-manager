@@ -1053,6 +1053,34 @@ button.rel-row:hover {
   cursor: default;
   user-select: none;
 }
+.mb-row.wave {
+  grid-template-columns: 34px minmax(0, 1fr) minmax(90px, 180px) 52px 44px 64px 28px;
+}
+.mb-wave {
+  height: 26px;
+  min-width: 0;
+}
+.mb-wave .waveform {
+  width: 100%;
+  height: 100%;
+  cursor: pointer;
+}
+.mb-wave-empty {
+  display: block;
+  height: 2px;
+  margin-top: 12px;
+  background: var(--line);
+  border-radius: 1px;
+}
+@media (max-width: 1100px) {
+  .mb-row.wave {
+    grid-template-columns: 34px minmax(0, 1fr) 52px 44px 64px 28px;
+  }
+  .mb-row.wave .mb-wave,
+  .mb-row.wave > span:empty {
+    display: none;
+  }
+}
 .mb-row:hover {
   background: var(--hover);
 }
@@ -1937,4 +1965,42 @@ button.rel-row:hover {
 }
 .lib-foot {
   align-items: center;
+}
+
+select.active-filter {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* ---------------------------------------------------------------- gán thư mục cho ứng dụng */
+.app-pick {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.app-pick label.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+}
+.app-pick label.chip input {
+  margin: 0;
+}
+.app-pick label.chip.on {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+.nav-heading-row:not(.nav-heading) {
+  display: flex;
+  align-items: center;
+}
+.nav-heading-row > .nav-heading {
+  flex: 1;
+  width: auto;
+}
+.dialog-body .row-actions input {
+  flex: 1;
+  min-width: 0;
 }
