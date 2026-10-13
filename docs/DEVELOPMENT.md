@@ -2,8 +2,11 @@
 
 Nhà phát triển: **Phạm Nam**
 
+> **Người mới tiếp nhận dự án: đọc [HANDOVER.md](HANDOVER.md) trước** — hiện trạng, cách chạy thử an toàn, quy trình phát hành và các chỗ dễ sai.
+> File này mô tả chi tiết các tính năng nền (Phase 1–5); một số mục chưa cập nhật theo các bản gần đây.
+
 Ứng dụng quản lý tài nguyên dựng video: quản lý tập trung plugin, LUT, SFX, template, preset, footage.
-Ứng dụng chạy trên Windows, local-first. **Không bao giờ tự di chuyển, đổi tên hay xóa file thật.**
+Ứng dụng chạy trên Windows và macOS (chip Apple M), local-first. **Không bao giờ tự di chuyển, đổi tên hay xóa file thật.**
 
 > Files belong to Windows. Metadata belongs to MRM.
 
@@ -45,7 +48,7 @@ src-tauri/src/
   rules.rs                Phase 4: rule engine
   organize.rs             Phase 4: trùng lặp, version family, quan hệ, gợi ý học từ tag
   ai.rs                   Phase 5: Ollama runtime, embedding index, semantic search, phân tích LLM
-  db.rs                   Schema (migration v1 → v2), FTS, merge
+  db.rs                   Schema + migration (SCHEMA_VERSION), FTS, merge
   commands.rs             Tauri commands chính
 src-tauri/binaries/       ffmpeg-x86_64-pc-windows-msvc.exe (LGPL, kèm FFMPEG-LICENSE.txt)
 ```
@@ -117,8 +120,8 @@ Phím tắt: `Ctrl+F` tìm · `↑/↓` chọn (Shift để chọn dải) · `Ct
 
 ## Roadmap
 
-- Phase 1–5: xong.
-- Còn lại: UI cho Collections (schema đã có), hỗ trợ xem bên trong RAR/7Z.
+- Phase 1–5: xong. Collections, xem bên trong RAR/7Z, Media Browser, bản macOS: đã có.
+- Việc tồn đọng: xem [HANDOVER.md](HANDOVER.md), mục 6.
 
 ## Phát hành (GitHub Actions)
 
@@ -127,5 +130,6 @@ Workflow `.github/workflows/release.yml` build trên `windows-latest`: tải FFm
 1. Tăng `version` trong `src-tauri/tauri.conf.json`, `package.json`, `src-tauri/Cargo.toml` (plugin: `plugins/HNH_SFX_Finder_MRM/package.json`, `manifest.xml`, `main.js`).
 2. Viết ghi chú ở `release-notes/vX.Y.Z.md` (không bắt buộc — thiếu thì GitHub tự sinh).
 3. `git tag vX.Y.Z && git push origin vX.Y.Z`.
+4. Bản macOS: `python scripts/ci.py mac vX.Y.Z` (workflow `release-macos.yml`). Chi tiết: [HANDOVER.md](HANDOVER.md), mục 5.
 
 Chạy thử không phát hành: tab **Actions → Build & Release → Run workflow** (để `publish` tắt) — file cài nằm ở mục Artifacts.

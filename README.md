@@ -167,4 +167,5 @@ Khi bấm **Gỡ**, MRM báo trước dữ liệu nào sẽ mất và tự sao l
 
 ## Dành cho nhà phát triển
 
-Build từ mã nguồn, cấu trúc dự án, kiến trúc dữ liệu: xem [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md).
+- Tiếp nhận dự án (hiện trạng, chạy thử an toàn, phát hành, các chỗ dễ sai): [docs/HANDOVER.md](docs/HANDOVER.md)
+- Build từ mã nguồn, cấu trúc dự án, chi tiết tính năng: [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md)
