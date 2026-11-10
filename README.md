@@ -29,7 +29,7 @@ Tải bản cài ở mục **[Releases](../../releases)**:
 | Thành phần | Phiên bản |
 |---|---|
 | MRM | **0.12.1** |
-| Plugin HNH SFX Finder | **0.12.3** |
+| Plugin HNH SFX Finder | **0.13.0** |
 
 ## Yêu cầu hệ thống
 

@@ -1,6 +1,6 @@
 # Bàn giao dự án MRM + plugin HNH SFX Finder
 
-Cập nhật: 13/10/2026 · MRM **0.12.1** · Plugin **0.12.3** · schema DB **v13** · `PLUGIN_CONTRACT = 1`
+Cập nhật: 10/11/2026 · MRM **0.12.1** · Plugin **0.13.0** · schema DB **v13** · `PLUGIN_CONTRACT = 1`
 
 Tài liệu này dành cho người (hoặc phiên làm việc AI) tiếp nhận dự án. Đọc xong là build, chạy thử, sửa lỗi và phát hành được.
 Phần giới thiệu cho người dùng nằm ở [README](../README.md); chi tiết từng tính năng cũ nằm ở [DEVELOPMENT.md](DEVELOPMENT.md).
@@ -151,6 +151,8 @@ Quy trình:
   Riêng lỗi "bấm nghe không có tiếng" đã sửa ở 0.12.1 theo phân tích code; cần người dùng Mac xác nhận.
   Nên thử: phát âm thanh, kéo thả sang app khác, AI offline (ollama-darwin), proxy video (VideoToolbox), plugin kết nối Resolve qua `install_mac.sh`.
 - Hộp thoại gỡ thư mục của plugin mới thử trên trang giả lập, chưa bấm trong Resolve.
+- Plugin 0.13.0 (Ghim, Dock, phím tắt) đã thử trong Resolve thật trên Windows, màn hình chính. Chưa thử: macOS, Dock trên màn hình phụ, chèn SFX dài hơn đoạn I-O.
+  Windows phải dùng mức `pop-up-menu` cho `setAlwaysOnTop`; `isAlwaysOnTop()` không chứng minh được cửa sổ thật sự nổi, phải xem cờ `WS_EX_TOPMOST`.
 
 ### Việc tồn đọng / ý tưởng đã bàn
 
