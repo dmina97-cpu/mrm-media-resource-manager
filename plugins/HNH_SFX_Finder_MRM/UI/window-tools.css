@@ -1,0 +1,46 @@
+.header-actions button.active,.dock-menu.active summary{border-color:var(--accent,#6d8cff);color:#fff;background:#2b3550}
+.header-actions button:disabled{opacity:1;cursor:default}
+.dock-menu{position:relative}
+.dock-menu summary{list-style:none;cursor:pointer;border:1px solid var(--line);border-radius:5px;font-size:11px;padding:7px 10px;white-space:nowrap}
+.dock-menu summary::-webkit-details-marker{display:none}
+.dock-items{position:absolute;right:0;top:100%;z-index:40;margin-top:4px;min-width:130px;display:grid;gap:4px;padding:6px;background:var(--panel);border:1px solid var(--line);border-radius:7px;box-shadow:0 8px 24px #0008}
+.dock-menu:not([open])>.dock-items{display:none}
+.dock-items button{text-align:left}
+#shortcutSummary{display:contents}
+#shortcutOpen{grid-column:1/-1;justify-self:start;margin-top:4px}
+#shortcutDialog{color:var(--text);background:var(--panel);border:1px solid var(--line);border-radius:12px;width:min(620px,94vw);max-height:90vh;padding:16px}
+#shortcutDialog::backdrop{background:#0008}
+#shortcutDialog:focus{outline:none}
+#shortcutDialog h2{margin:0 0 4px;font-size:16px}
+#shortcutDialog table{width:100%;border-collapse:collapse;font-size:12px;margin-top:8px}
+#shortcutDialog th{text-align:left;color:var(--muted);font-weight:500;padding:4px}
+#shortcutDialog td{padding:3px 4px}
+.shortcut-fixed{color:var(--muted)}
+.shortcut-key{min-width:120px;font-size:11px;padding:4px 8px}
+.shortcut-key.listening{border-color:#ffb23b;color:#ffb23b}
+.shortcut-global{display:flex;gap:6px;align-items:flex-start;margin-top:10px;font-size:12px}
+#shortcutError{min-height:16px;color:#ff8f8f;font-size:12px;margin:8px 0 0}
+.shortcut-actions{display:flex;gap:6px;justify-content:flex-end;margin-top:8px}
+.shortcut-actions #shortcutReset{margin-right:auto}
+
+/* Dock: panel hẹp ở cạnh trái/phải */
+body[data-dock=left] header,body[data-dock=right] header{padding:6px 8px;gap:5px}
+body[data-dock=left] header p,body[data-dock=right] header p{max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+body[data-dock=left] .media-tabs,body[data-dock=right] .media-tabs{flex-basis:100%;order:2}
+body[data-dock=left] #autoBinOpen,body[data-dock=right] #autoBinOpen,body[data-dock=left] #updateShortcut,body[data-dock=right] #updateShortcut,body[data-dock=left] #helpBtn,body[data-dock=right] #helpBtn{display:none}
+body[data-dock=left] main,body[data-dock=right] main{padding:6px 8px 0}
+body[data-dock=left] footer,body[data-dock=right] footer{padding:5px 8px 6px}
+body[data-dock=left] .folder-browser,body[data-dock=right] .folder-browser{width:120px}
+body[data-dock=left] .finder-filters,body[data-dock=right] .finder-filters{display:none}
+
+/* Dock: dải ngang ở cạnh trên/dưới, danh sách bên trái, nghe thử + chèn bên phải */
+body[data-dock=top],body[data-dock=bottom]{grid-template-columns:minmax(0,1fr) minmax(320px,38%);grid-template-rows:auto minmax(0,1fr)}
+body[data-dock=top] header,body[data-dock=bottom] header{grid-column:1/-1;padding:4px 10px;flex-wrap:nowrap}
+body[data-dock=top] header p,body[data-dock=bottom] header p{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+body[data-dock=top] .media-tabs,body[data-dock=bottom] .media-tabs{flex-basis:auto;order:0}
+body[data-dock=top] main,body[data-dock=bottom] main{grid-column:1;grid-row:2;padding:5px 10px 0}
+body[data-dock=top] footer,body[data-dock=bottom] footer{grid-column:2;grid-row:2;overflow:auto;border-left:1px solid var(--line);padding:5px 10px}
+body[data-dock=top] .finder-filters,body[data-dock=bottom] .finder-filters{display:none}
+body[data-dock=top] .chips,body[data-dock=bottom] .chips{padding:3px 0}
+body[data-dock=top] .folder-toolbar,body[data-dock=bottom] .folder-toolbar{display:none}
+body[data-dock=top] #mediaWorkspace,body[data-dock=bottom] #mediaWorkspace{grid-column:1/-1}

@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, dialog } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, screen, globalShortcut } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const fsp = fs.promises;
@@ -11,7 +11,7 @@ const PLUGIN_ID = (() => {
 const AUDIO_EXTS = new Set(['.wav', '.mp3', '.flac', '.aiff', '.aif', '.m4a', '.aac', '.ogg']);
 const INDEX_VERSION = 3;
 const library = require('./library');
-const PLUGIN_VERSION = '0.12.3';
+const PLUGIN_VERSION = '0.13.0';
 const { Portable } = require('./portable');
 
 let WorkflowIntegration = null;
@@ -855,6 +855,11 @@ function registerIpc() {
   transfer('backup:apply',(_e,token,overrides,options)=>isMrm()?useMrmBackup():portable.apply(token,overrides,options));
   transfer('backup:undo',()=>isMrm()?useMrmBackup():portable.undo());
 
+  windowModes = require('./window-modes').createWindowModes({screen,globalShortcut,file:path.join(userDataDir,'window-prefs.json'),send});
+  ipcMain.handle('window-modes:get',()=>windowModes.state());
+  ipcMain.handle('window-modes:pin',(_e,on)=>windowModes.setPinned(on));
+  ipcMain.handle('window-modes:dock',(_e,edge)=>windowModes.setDock(edge));
+  ipcMain.handle('window-modes:shortcuts',(_e,value)=>windowModes.setShortcuts(value));
   ipcMain.handle('resolve:status', async () => initializeResolve(false));
   ipcMain.handle('resolve:retry', async () => initializeResolve(true));
   ipcMain.handle('resolve:tracks', async () => getAudioTracks());
@@ -878,6 +883,7 @@ function registerIpc() {
   });
 }
 
+let windowModes = null;
 async function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1040,
@@ -895,6 +901,7 @@ async function createWindow() {
     }
   });
   mainWindow.once('closed',()=>thumbnailDecoder?.dispose());
+  windowModes.attach(mainWindow);
   await mainWindow.loadFile(path.join(__dirname, 'UI', 'index.html'));
 }
 
