@@ -7,7 +7,7 @@ HERE="$(cd "$(dirname "$0")" && pwd)"
 RESOLVE="/Library/Application Support/Blackmagic Design/DaVinci Resolve"
 TARGET="$RESOLVE/Workflow Integration Plugins/HNH_SFX_Finder_MRM"
 EXAMPLES="$RESOLVE/Developer/Workflow Integrations/Examples"
-ITEMS="mrm-store.js smart-audio.js sfx-drag.js auto-bin.js thumbnail-decoder.js maintenance.js tag-manager.js audio-export.js changelog.js release-history.json free-tracks.js timeline-range.js main.js av-insert.js bulk-metadata.js updater.js library.js library-types.js date-filters.js portable.js visual-media.js media-types.js trim.js preload.js package.json manifest.xml UI README.md CHANGELOG.md"
+ITEMS="mrm-store.js smart-audio.js sfx-drag.js auto-bin.js thumbnail-decoder.js maintenance.js tag-manager.js audio-export.js changelog.js release-history.json free-tracks.js timeline-range.js main.js av-insert.js bulk-metadata.js updater.js library.js library-types.js date-filters.js portable.js visual-media.js media-types.js trim.js window-modes.js preload.js package.json manifest.xml UI README.md CHANGELOG.md"
 
 fail() { echo "INSTALL FAILED: $1" >&2; exit 1; }
 

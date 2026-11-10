@@ -9,7 +9,7 @@ try {
   $previousVersion = $null
   $oldPackage = Join-Path $pluginTarget 'package.json'
   if (Test-Path -LiteralPath $oldPackage) { try { $previousVersion = (Get-Content -LiteralPath $oldPackage -Raw | ConvertFrom-Json).version } catch {} }
-  $items = @('mrm-store.js','smart-audio.js','sfx-drag.js','auto-bin.js','thumbnail-decoder.js','maintenance.js','tag-manager.js','audio-export.js','changelog.js','release-history.json','free-tracks.js','timeline-range.js','main.js','av-insert.js','bulk-metadata.js','updater.js','library.js','library-types.js','date-filters.js','portable.js','visual-media.js','media-types.js','trim.js','preload.js','package.json','manifest.xml','WorkflowIntegration.node','UI','README.md','CHANGELOG.md')
+  $items = @('mrm-store.js','smart-audio.js','sfx-drag.js','auto-bin.js','thumbnail-decoder.js','maintenance.js','tag-manager.js','audio-export.js','changelog.js','release-history.json','free-tracks.js','timeline-range.js','main.js','av-insert.js','bulk-metadata.js','updater.js','library.js','library-types.js','date-filters.js','portable.js','visual-media.js','media-types.js','trim.js','window-modes.js','preload.js','package.json','manifest.xml','WorkflowIntegration.node','UI','README.md','CHANGELOG.md')
   foreach ($item in $items) { if (-not (Test-Path -LiteralPath (Join-Path $PSScriptRoot $item))) { throw "Missing release file: $item" } }
   if (Test-Path -LiteralPath $pluginTarget) {
     $backupRoot = Join-Path $env:PROGRAMDATA 'HNH-SFX-Finder-Backups'
