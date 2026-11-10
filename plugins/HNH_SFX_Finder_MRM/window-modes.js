@@ -40,7 +40,8 @@ function createWindowModes({screen,globalShortcut,file,send,platform=process.pla
  function applyTop(){
   if(!alive())return;
   const on=prefs.pinned||!!prefs.dock;
-  win.setAlwaysOnTop(on,'floating');
+  // Windows: mức 'floating' bị Electron xếp sau taskbar và có thể mất cờ topmost.
+  win.setAlwaysOnTop(on,platform==='win32'?'pop-up-menu':'floating');
   if(platform==='darwin')win.setVisibleOnAllWorkspaces(on,{visibleOnFullScreen:on,skipTransformProcessType:true});
  }
  const sizeKey=()=>isSide(prefs.dock)?'side':'band';

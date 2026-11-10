@@ -33,7 +33,7 @@ test('docking snaps to the edge, floats, and undocking restores the window and t
  const f=fakes(),m=f.make();m.attach(f.win);
  assert.equal(m.setDock('right').onTop,true);
  assert.deepEqual(f.win.bounds,{x:1460,y:0,width:460,height:1040});
- assert.deepEqual(f.win.top,{on:true,level:'floating'});assert.deepEqual(f.win.min,[340,280]);
+ assert.deepEqual(f.win.top,{on:true,level:'pop-up-menu'});assert.deepEqual(f.win.min,[340,280]);
  m.setDock(null);
  assert.deepEqual(f.win.bounds,{x:100,y:100,width:1040,height:820});
  assert.equal(f.win.top.on,false);assert.deepEqual(f.win.min,[760,680]);
